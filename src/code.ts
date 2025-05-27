@@ -4,84 +4,158 @@
 console.log('Figma command:', figma.command);
 
 // Helper function to check if a node is a valid Auto Layout frame
-function isValidAutoLayoutNode(node: SceneNode): node is FrameNode | ComponentNode | InstanceNode | ComponentSetNode {
-  return (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET') && node.layoutMode !== 'NONE';
+// function isValidAutoLayoutNode(node: SceneNode): node is FrameNode | ComponentNode | InstanceNode | ComponentSetNode {
+//   return (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET') && node.layoutMode !== 'NONE';
+// }
+
+// --- NEW HELPER FUNCTIONS ---
+
+// Helper to check if a node can have corner radius
+function canHaveCornerRadius(node: SceneNode): node is FrameNode | ComponentNode | InstanceNode | ComponentSetNode | RectangleNode | StarNode | PolygonNode | EllipseNode {
+    return node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET' ||
+           node.type === 'RECTANGLE' || node.type === 'STAR' || node.type === 'POLYGON' || node.type === 'ELLIPSE';
 }
 
-// Mapping from UI index (0-8) to Figma alignment properties
-// [primaryAxisAlignItems, counterAxisAlignItems]
-const alignmentMap: { [key: number]: [FrameNode['primaryAxisAlignItems'], FrameNode['counterAxisAlignItems']] } = {
-  0: ['MIN', 'MIN'],    // Top Left
-  1: ['CENTER', 'MIN'], // Top Center
-  2: ['MAX', 'MIN'],    // Top Right
-  3: ['MIN', 'CENTER'],  // Middle Left
-  4: ['CENTER', 'CENTER'],// Middle Center
-  5: ['MAX', 'CENTER'],  // Middle Right
-  6: ['MIN', 'MAX'],    // Bottom Left
-  7: ['CENTER', 'MAX'], // Bottom Center
-  8: ['MAX', 'MAX']     // Bottom Right
-};
+// Helper to check if a node can have padding
+function canHavePadding(node: SceneNode): node is FrameNode | ComponentNode | InstanceNode | ComponentSetNode {
+    return (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET') && 'paddingTop' in node;
+}
 
-// Mapping from Figma alignment properties back to UI index
-function getIndexFromAlignment(primary: FrameNode['primaryAxisAlignItems'], counter: FrameNode['counterAxisAlignItems']): number {
-  for (const key in alignmentMap) {
-    if (alignmentMap[key][0] === primary && alignmentMap[key][1] === counter) {
-      return parseInt(key, 10);
+// Helper to check if a node can have layout sizing (hug/fill)
+function canHaveLayoutSizing(node: SceneNode): node is FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode {
+    return node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET' || node.type === 'TEXT';
+}
+
+
+function applyBorderRadius(nodes: ReadonlyArray<SceneNode>, radius: number): number {
+    let appliedCount = 0;
+    for (const node of nodes) {
+        if (canHaveCornerRadius(node)) {
+            // All node types that pass canHaveCornerRadius are known to have .cornerRadius
+            // This sets the radius uniformly for all corners.
+            node.cornerRadius = radius;
+            appliedCount++;
+        }
     }
-  }
-  return 4; // Default to center if no match (should not happen with valid inputs)
+    return appliedCount;
+}
+
+function applyPadding(nodes: ReadonlyArray<SceneNode>, padding: number): number {
+    let appliedCount = 0;
+    for (const node of nodes) {
+        if (canHavePadding(node)) {
+            node.paddingTop = padding;
+            node.paddingBottom = padding;
+            node.paddingLeft = padding;
+            node.paddingRight = padding;
+            appliedCount++;
+        }
+    }
+    return appliedCount;
+}
+
+function applySizing(nodes: ReadonlyArray<SceneNode>, axis: 'horizontal' | 'vertical', mode: 'HUG' | 'FILL'): number {
+    let appliedCount = 0;
+    for (const node of nodes) {
+        if (canHaveLayoutSizing(node)) {
+            if (axis === 'horizontal') {
+                if (mode === 'FILL' && node.parent && node.parent.type === 'FRAME' && (node.parent as FrameNode).layoutMode !== 'NONE') {
+                    node.layoutSizingHorizontal = 'FILL';
+                    appliedCount++;
+                } else if (mode === 'HUG') {
+                    node.layoutSizingHorizontal = 'HUG';
+                    appliedCount++;
+                } else if (mode === 'FILL') {
+                     figma.notify(`"${node.name}" cannot be set to Fill Width. Parent must be an Auto Layout frame.`, { error: true, timeout: 2500 });
+                }
+            } else { // vertical
+                if (mode === 'FILL' && node.parent && node.parent.type === 'FRAME' && (node.parent as FrameNode).layoutMode !== 'NONE') {
+                    node.layoutSizingVertical = 'FILL';
+                    appliedCount++;
+                } else if (mode === 'HUG') {
+                    node.layoutSizingVertical = 'HUG';
+                    appliedCount++;
+                } else if (mode === 'FILL') {
+                    figma.notify(`"${node.name}" cannot be set to Fill Height. Parent must be an Auto Layout frame.`, { error: true, timeout: 2500 });
+                }
+            }
+        }
+    }
+    return appliedCount;
 }
 
 
-if (figma.command === 'aa') {
-  figma.showUI(__html__, { width: 180, height: 180, themeColors: true });
-
-  function sendVisibilityUpdate() {
+function executeStyleCommand(commandString: string) {
     const selection = figma.currentPage.selection;
-    const hasValidSelection = selection.some(isValidAutoLayoutNode);
-    figma.ui.postMessage({ type: 'update-visibility', hasValidSelection });
-
-    if (hasValidSelection) {
-      const autoLayoutNode = selection.find(isValidAutoLayoutNode) as FrameNode | ComponentNode | InstanceNode | ComponentSetNode; // We know one exists
-      const initialPrimaryAlign = autoLayoutNode.primaryAxisAlignItems;
-      const initialCounterAlign = autoLayoutNode.counterAxisAlignItems;
-      const initialIndex = getIndexFromAlignment(initialPrimaryAlign, initialCounterAlign);
-      figma.ui.postMessage({ type: 'set-initial-alignment', index: initialIndex });
+    if (selection.length === 0) {
+        figma.notify('Please select at least one layer.', { error: true });
+        figma.ui.postMessage({ type: 'INVALID_STYLE_COMMAND' }); // Also inform UI
+        return;
     }
-  }
 
-  // Send initial state
-  sendVisibilityUpdate();
+    const command = commandString.toLowerCase();
+    let modifiedCount = 0;
+    let actionName = '';
 
-  // Listen for selection changes
-  figma.on('selectionchange', () => {
-    sendVisibilityUpdate();
-  });
+    // Border Radius: e.g., "br5", "br0", "br10"
+    if (command.startsWith('br')) {
+        const value = parseInt(command.substring(2));
+        if (!isNaN(value)) {
+            actionName = `Set Border Radius to ${value}`;
+            modifiedCount = applyBorderRadius(selection, value);
+        }
+    }
+    // Padding: e.g., "p0", "p16"
+    else if (command.startsWith('p')) {
+        const value = parseInt(command.substring(1));
+        if (!isNaN(value)) {
+            actionName = `Set All Padding to ${value}`;
+            modifiedCount = applyPadding(selection, value);
+        }
+    }
+    // Sizing: "wh", "hh", "wf", "hf"
+    else if (command === 'wh') {
+        actionName = 'Width to Hug';
+        modifiedCount = applySizing(selection, 'horizontal', 'HUG');
+    } else if (command === 'hh') {
+        actionName = 'Height to Hug';
+        modifiedCount = applySizing(selection, 'vertical', 'HUG');
+    } else if (command === 'wf') {
+        actionName = 'Width to Fill';
+        modifiedCount = applySizing(selection, 'horizontal', 'FILL');
+    } else if (command === 'hf') {
+        actionName = 'Height to Fill';
+        modifiedCount = applySizing(selection, 'vertical', 'FILL');
+    }
+    // Add more commands here as needed
+
+    if (actionName && modifiedCount > 0) {
+        figma.notify(`Applied "${actionName}" to ${modifiedCount} layer(s).`);
+    } else if (actionName) { // Action was recognized but nothing was modified
+        figma.notify(`No applicable layers found for "${actionName}".`, { timeout: 2000 });
+        figma.ui.postMessage({ type: 'INVALID_STYLE_COMMAND' });
+    } else { // Command not recognized
+        figma.notify(`Unknown command: "${commandString}"`, { error: true, timeout: 2000 });
+        figma.ui.postMessage({ type: 'INVALID_STYLE_COMMAND' });
+    }
+}
+
+
+if (figma.command === 'aa' || figma.command === 'style_palette') { // Assuming 'aa' evolves or use a new command
+  figma.showUI(__html__, { width: 180, height: 50, themeColors: true }); // Adjusted size for icon + input
 
   figma.ui.onmessage = msg => {
-    if (msg.type === 'set-alignment') {
-      const selection = figma.currentPage.selection;
-      const [primaryAlign, counterAlign] = alignmentMap[msg.index];
-      let appliedCount = 0;
-      for (const node of selection) {
-        if (isValidAutoLayoutNode(node)) {
-          node.primaryAxisAlignItems = primaryAlign;
-          node.counterAxisAlignItems = counterAlign;
-          appliedCount++;
-        }
-      }
-      // Optional: notify user of change
-      // if (appliedCount > 0) {
-      //   figma.notify(`Alignment set for ${appliedCount} layer(s).`);
-      // }
-    } else if (msg.type === 'close-dialog') {
-      figma.closePlugin();
-    } else if (msg.type === 'get-initial-visibility') { // Handle request from UI
-      sendVisibilityUpdate();
+    if (msg.type === 'RUN_STYLE_COMMAND') {
+      executeStyleCommand(msg.payload);
     }
+    // We don't close the plugin here to keep the UI persistent
+    // Old 'close-dialog' and alignment specific messages are removed
   };
 } else {
-  // Existing command logic
+  // Existing quick command logic (wh, hh, wf, hf, p0, p16)
+  // This part can be kept if you want to maintain the old quick commands
+  // accessible via Figma's command palette directly, without the new UI.
+  // Otherwise, this entire 'else' block could be removed if 'aa' is the sole entry point.
   const selection = figma.currentPage.selection;
   let S = selection.length; // S for "Selection"
 
