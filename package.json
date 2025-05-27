@@ -1,0 +1,17 @@
+{
+  "name": "figma-lazer",
+  "version": "1.0.0",
+  "main": "dist/code.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -p tsconfig.json"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.113.0",
+    "typescript": "^5.8.3"
+  }
+}

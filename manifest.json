@@ -1,0 +1,25 @@
+{
+  "name": "Lazer",
+  "id": "figma-lazer-plugin",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "editorType": ["figma"],
+  "menu": [
+    {
+      "name": "wh: Set Width to Hug",
+      "command": "wh"
+    },
+    {
+      "name": "hh: Set Height to Hug",
+      "command": "hh"
+    },
+    {
+      "name": "wf: Set Width to Fill",
+      "command": "wf"
+    },
+    {
+      "name": "hf: Set Height to Fill",
+      "command": "hf"
+    }
+  ]
+}
