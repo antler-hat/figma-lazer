@@ -28,6 +28,11 @@
     {
       "name": "p16: Set All Padding to 16",
       "command": "p16"
+    },
+    {
+      "name": "aa: Set Auto Layout Alignment",
+      "command": "aa"
     }
-  ]
+  ],
+  "ui": "dist/ui.html"
 }
