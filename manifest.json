@@ -20,6 +20,14 @@
     {
       "name": "hf: Set Height to Fill",
       "command": "hf"
+    },
+    {
+      "name": "p0: Set All Padding to 0",
+      "command": "p0"
+    },
+    {
+      "name": "p16: Set All Padding to 16",
+      "command": "p16"
     }
   ]
 }

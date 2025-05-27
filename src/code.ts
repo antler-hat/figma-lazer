@@ -62,6 +62,28 @@ if (S === 0) {
           } else {
             figma.notify(`"${operableNode.name}" cannot be set to Fill Height. Parent must be an Auto Layout frame.`, { error: true, timeout: 3500 });
           }
+        } else if (figma.command === 'p0') {
+          commandName = 'Set All Padding to 0';
+          if ('paddingTop' in operableNode && 'paddingBottom' in operableNode && 'paddingLeft' in operableNode && 'paddingRight' in operableNode) {
+            operableNode.paddingTop = 0;
+            operableNode.paddingBottom = 0;
+            operableNode.paddingLeft = 0;
+            operableNode.paddingRight = 0;
+            modifiedCount++;
+          } else {
+            figma.notify(`Layer "${operableNode.name}" of type "${operableNode.type}" does not support padding.`, { error: true, timeout: 3000 });
+          }
+        } else if (figma.command === 'p16') {
+          commandName = 'Set All Padding to 16';
+          if ('paddingTop' in operableNode && 'paddingBottom' in operableNode && 'paddingLeft' in operableNode && 'paddingRight' in operableNode) {
+            operableNode.paddingTop = 16;
+            operableNode.paddingBottom = 16;
+            operableNode.paddingLeft = 16;
+            operableNode.paddingRight = 16;
+            modifiedCount++;
+          } else {
+            figma.notify(`Layer "${operableNode.name}" of type "${operableNode.type}" does not support padding.`, { error: true, timeout: 3000 });
+          }
         }
       } else {
         // Other node types (e.g., SLICE, SECTION, VECTOR without text capabilities for these properties)
