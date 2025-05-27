@@ -3,142 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Style Palette</title>
+    <title>Auto Layout Alignment</title>
     <style>
-        :root {
-            --icon-size: 30px;
-            --input-width: 120px;
-            --input-height: 28px;
-            --blue-accent: #0D99FF; /* Figma-like blue */
+        :root{
+            --cell-size: 15px;
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: sans-serif;
             margin: 0;
             background-color: var(--figma-color-bg);
-            color: var(--figma-color-text);
-            display: flex;
-            align-items: flex-end; /* Align to bottom */
-            justify-content: flex-end; /* Align to right */
-            height: 100vh;
-            width: 100vw;
-            box-sizing: border-box;
-            overflow: hidden; /* Prevent scrollbars on the tiny iframe */
-        }
-
-        #style-palette-container {
-            display: flex;
-            align-items: center;
-            padding: 5px; /* Small padding around the elements */
-            position: absolute; /* Position within the small iframe */
-            bottom: 5px;
-            right: 5px;
-        }
-
-        #listener-icon {
-            width: var(--icon-size);
-            height: var(--icon-size);
-            background-color: var(--blue-accent);
-            border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-            cursor: default;
-            user-select: none;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        #command-input {
-            width: var(--input-width);
-            height: var(--input-height);
-            padding: 0 8px;
-            margin-left: 8px; /* Space between icon and input */
-            border: 1px solid var(--figma-color-border);
-            border-radius: 4px;
-            background-color: var(--figma-color-bg-secondary);
+            height: 100vh; /* Ensure body takes full height for centering */
+            text-align: center;
             color: var(--figma-color-text);
-            font-size: 12px;
-            outline: none;
-            box-sizing: border-box;
+            font-size: 11px;
         }
-
-        #command-input:focus {
-            border-color: var(--blue-accent);
-            box-shadow: 0 0 0 1px var(--blue-accent);
+        #alignment-grid {
+            display: grid; /* Will be controlled by JS, initially might be none */
+            grid-template-columns: repeat(3, 15px);
+            grid-template-rows: repeat(3, 15px);
+            gap: 5px;
+            padding: 5px;
+            background-color: var(--figma-color-bg-secondary);
+            align-items: center;
+            border-radius: 5px;
+            justify-items: center;
         }
-
-        /* Shake animation */
-        .shake {
-            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-            transform: translate3d(0, 0, 0);
-            backface-visibility: hidden;
-            perspective: 1000px;
+        #alignment-grid:focus {
+            outline: 2px solid var(--figma-color-bg-brand);
+            outline-offset: 1px;
         }
-
-        @keyframes shake {
-            10%, 90% {
-                transform: translate3d(-1px, 0, 0);
-            }
-            20%, 80% {
-                transform: translate3d(2px, 0, 0);
-            }
-            30%, 50%, 70% {
-                transform: translate3d(-3px, 0, 0);
-            }
-            40%, 60% {
-                transform: translate3d(3px, 0, 0);
-            }
+        .grid-cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: default;
+            border-radius: 3px;
+            content: '';
+            background-color: var(--figma-color-icon-tertiary);
+            width: 3px;
+            height: 3px;
+            display: block;
+        }
+        .grid-cell.selected {
+            width: 100%;
+            height: 100%;
+            background-color: var(--figma-color-bg-brand);
+        }
+        .grid-cell:focus {
+            outline: 2px solid var(--figma-color-bg-brand);
+            outline-offset: 1px;
         }
     </style>
 </head>
 <body>
-    <div id="style-palette-container">
-        <div id="listener-icon">/_</div>
-        <input type="text" id="command-input" placeholder="Cmd..." style="display: none;">
+    <div id="message-container" style="display: none;">
+        Select an auto layout frame
     </div>
-
+    <div class="grid-container" style="display: flex;"> <!-- Initially show grid, will be controlled by JS -->
+        <div id="alignment-grid" tabindex="0">
+            <!-- Cells will be generated by script -->
+        </div>
+    </div>
     <script>
-        const listenerIcon = document.getElementById('listener-icon');
-        const commandInput = document.getElementById('command-input');
+        // UI logic will go here
+        const alignmentGrid = document.getElementById('alignment-grid');
+        const gridContainer = document.querySelector('.grid-container');
+        const messageContainer = document.getElementById('message-container');
 
-        // Show/focus input on Option + ' (Alt + ')
-        window.addEventListener('keydown', (event) => {
-            if (event.altKey && event.key === "'") {
-                event.preventDefault(); // Prevent default browser action for the shortcut
-                commandInput.style.display = 'inline-block';
-                commandInput.focus();
-            }
-        });
+        // Create 9 grid cells
+        for (let i = 0; i < 9; i++) {
+            const cell = document.createElement('div');
+            cell.classList.add('grid-cell');
+            cell.dataset.index = i;
+            // Cells are not individually focusable, the grid container is.
+            // A visual marker will indicate selection.
+            alignmentGrid.appendChild(cell);
+        }
 
-        commandInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                const commandValue = commandInput.value.trim();
-                if (commandValue) {
-                    parent.postMessage({ pluginMessage: { type: 'RUN_STYLE_COMMAND', payload: commandValue } }, '*');
+        // Initial selected cell (e.g., center)
+        let selectedIndex = 4; // 0-8, 4 is center
+
+        function updateSelectedCell() {
+            const cells = alignmentGrid.querySelectorAll('.grid-cell');
+            cells.forEach((cell, index) => {
+                if (index === selectedIndex) {
+                    cell.classList.add('selected');
+                } else {
+                    cell.classList.remove('selected');
                 }
-                commandInput.value = '';
-                commandInput.style.display = 'none';
-            } else if (event.key === 'Escape') {
-                event.preventDefault();
-                commandInput.value = '';
-                commandInput.style.display = 'none';
-            }
+            });
+        }
+        
+        updateSelectedCell(); // Set initial selection
+
+        // Focus the grid on load
+        alignmentGrid.focus();
+
+        // Focus the grid when the window is clicked
+        window.addEventListener('click', () => {
+            alignmentGrid.focus();
         });
 
-        // Listen for messages from the plugin code (e.g., for invalid command)
-        window.onmessage = (event) => {
-            const message = event.data.pluginMessage;
-            if (message && message.type === 'INVALID_STYLE_COMMAND') {
-                commandInput.classList.add('shake');
-                // Remove the class after the animation completes
-                setTimeout(() => {
-                    commandInput.classList.remove('shake');
-                }, 500); // Duration of the shake animation
+        // Keyboard navigation
+        alignmentGrid.onkeydown = (event) => {
+            let newIndex = selectedIndex;
+            const currentRow = Math.floor(selectedIndex / 3);
+            const currentCol = selectedIndex % 3;
+
+            switch (event.key) {
+                case 'ArrowUp':
+                    if (currentRow > 0) newIndex -= 3;
+                    event.preventDefault();
+                    break;
+                case 'ArrowDown':
+                    if (currentRow < 2) newIndex += 3;
+                    event.preventDefault();
+                    break;
+                case 'ArrowLeft':
+                    if (currentCol > 0) newIndex -= 1;
+                    event.preventDefault();
+                    break;
+                case 'ArrowRight':
+                    if (currentCol < 2) newIndex += 1;
+                    event.preventDefault();
+                    break;
+                case 'Escape':
+                    parent.postMessage({ pluginMessage: { type: 'close-dialog' } }, '*');
+                    event.preventDefault();
+                    break;
+                default:
+                    return; // Do nothing for other keys
+            }
+
+            if (newIndex !== selectedIndex) {
+                selectedIndex = newIndex;
+                updateSelectedCell();
+                // Send message to plugin code to update Figma selection
+                parent.postMessage({ pluginMessage: { type: 'set-alignment', index: selectedIndex } }, '*');
             }
         };
+
+        // Listen for messages from the plugin code
+        window.onmessage = (event) => {
+            const message = event.data.pluginMessage;
+            if (!message) return;
+
+            if (message.type === 'set-initial-alignment') {
+                if (typeof message.index === 'number' && message.index >= 0 && message.index < 9) {
+                    selectedIndex = message.index;
+                    updateSelectedCell();
+                    // Ensure grid is visible
+                }
+            } else if (message.type === 'update-visibility') {
+                if (message.hasValidSelection) {
+                    gridContainer.style.display = 'flex';
+                    messageContainer.style.display = 'none';
+                } else {
+                    gridContainer.style.display = 'none';
+                    messageContainer.style.display = 'block'; // Or 'flex' if you want to use flex properties for centering message
+                }
+            }
+        };
+
+        // Request initial visibility state from the plugin
+        parent.postMessage({ pluginMessage: { type: 'get-initial-visibility' } }, '*');
+
     </script>
 </body>
 </html>
