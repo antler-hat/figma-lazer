@@ -158,13 +158,11 @@
                     selectedIndex = message.index;
                     updateSelectedCell();
                     // Ensure grid is visible
-                    // Removed: alignmentGrid.focus();
                 }
             } else if (message.type === 'update-visibility') {
                 if (message.hasValidSelection) {
                     gridContainer.style.display = 'flex';
                     messageContainer.style.display = 'none';
-                    // Removed: alignmentGrid.focus(); 
                 } else {
                     gridContainer.style.display = 'none';
                     messageContainer.style.display = 'block'; // Or 'flex' if you want to use flex properties for centering message

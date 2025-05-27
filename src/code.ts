@@ -34,7 +34,7 @@ function getIndexFromAlignment(primary: FrameNode['primaryAxisAlignItems'], coun
 
 
 if (figma.command === 'aa') {
-  figma.showUI(__html__, { width: 180, height: 180, themeColors: true }); // Adjusted size
+  figma.showUI(__html__, { width: 180, height: 180, themeColors: true });
 
   function sendVisibilityUpdate() {
     const selection = figma.currentPage.selection;
