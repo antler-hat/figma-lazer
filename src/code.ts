@@ -78,9 +78,70 @@ if (figma.command === 'aa') {
       figma.closePlugin();
     } else if (msg.type === 'get-initial-visibility') { // Handle request from UI
       sendVisibilityUpdate();
+    } else if (msg.type === 'set-stroke') {
+      const selection = figma.currentPage.selection;
+      let appliedCount = 0;
+      for (const node of selection) {
+        if ('strokes' in node && 'strokeWeight' in node) {
+          const strokeWeight = msg.value;
+          // Ensure node is of a type that supports strokes and strokeWeight
+          const strokableNode = node as FrameNode | RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode | TextNode | ComponentNode | InstanceNode | ComponentSetNode; // Add other types as needed
+
+          if (strokeWeight > 0) {
+            // If setting stroke to a value > 0, ensure there's a stroke paint
+            if (strokableNode.strokes.length === 0) {
+              strokableNode.strokes = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }]; // Default to black
+            }
+            strokableNode.strokeWeight = strokeWeight;
+          } else {
+            // If setting stroke to 0, effectively remove stroke by setting weight to 0
+            // Or, one could remove all stroke paints: strokableNode.strokes = [];
+            strokableNode.strokeWeight = 0;
+          }
+          appliedCount++;
+        }
+      }
+      if (appliedCount > 0) {
+        figma.notify(`Stroke set to ${msg.value} for ${appliedCount} layer(s).`);
+      }
     }
   };
+} else if (figma.command === 'str1' || figma.command === 'str0') {
+  const selection = figma.currentPage.selection;
+  let S = selection.length;
+  if (S === 0) {
+    figma.notify('Please select at least one layer.', { error: true });
+    figma.closePlugin();
+    // Removed return statement here as figma.closePlugin() should suffice
+  } else {
+    let modifiedCount = 0;
+    const strokeWeight = figma.command === 'str1' ? 1 : 0;
+    const commandName = `Set Stroke to ${strokeWeight}`;
+
+    for (const node of selection) {
+      if ('strokes' in node && 'strokeWeight' in node) {
+        const strokableNode = node as FrameNode | RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode | TextNode | ComponentNode | InstanceNode | ComponentSetNode;
+        if (strokeWeight > 0) {
+          if (strokableNode.strokes.length === 0) {
+            strokableNode.strokes = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }];
+          }
+          strokableNode.strokeWeight = strokeWeight;
+        } else {
+          strokableNode.strokeWeight = 0;
+        }
+        modifiedCount++;
+      }
+    }
+
+    if (modifiedCount > 0) {
+      figma.notify(`Applied "${commandName}" to ${modifiedCount} layer${modifiedCount === 1 ? '' : 's'}.`);
+    } else {
+      figma.notify(`No applicable layers found for "${commandName}".`, { timeout: 3000 });
+    }
+    figma.closePlugin();
+  }
 } else {
+  // Existing command logic
   // Existing command logic
   const selection = figma.currentPage.selection;
   let S = selection.length; // S for "Selection"
