@@ -32,6 +32,22 @@
     {
       "name": "aa: Set Auto Layout Alignment",
       "command": "aa"
+    },
+    {
+      "name": "br8: Set Border Radius to 8px",
+      "command": "br8"
+    },
+    {
+      "name": "br0: Set Border Radius to 0px",
+      "command": "br0"
+    },
+    {
+      "name": "str1: Set Stroke to 1",
+      "command": "str1"
+    },
+    {
+      "name": "str0: Set Stroke to 0",
+      "command": "str0"
     }
   ],
   "ui": "dist/ui.html"

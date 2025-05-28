@@ -133,14 +133,42 @@
                     event.preventDefault();
                     break;
                 case 'Escape':
+                case 'Enter': // Add Enter key to close dialog
                     parent.postMessage({ pluginMessage: { type: 'close-dialog' } }, '*');
                     event.preventDefault();
+                    break;
+                case 's': // New key for stroke commands
+                    // Check for 't' + 'r' + '1' or '0' sequence or direct '1' or '0' after 's'
+                    // For simplicity, let's assume direct '1' or '0' after 's' for now
+                    // This part might need a more robust sequence detection if complex chords are needed
+                    break;
+                case 't': // Part of str sequence
+                    // Sequence detection logic would go here
+                    break;
+                case 'r': // Part of str sequence
+                    // Sequence detection logic would go here
+                    break;
+                case '1':
+                    // Check if previous keys were 's', 't', 'r'
+                    // For now, let's assume '1' after 's'
+                    if (event.altKey && event.shiftKey) { // Using Alt+Shift+1 as a placeholder for str1
+                        parent.postMessage({ pluginMessage: { type: 'set-stroke', value: 1 } }, '*');
+                        event.preventDefault();
+                    }
+                    break;
+                case '0':
+                    // Check if previous keys were 's', 't', 'r'
+                    // For now, let's assume '0' after 's'
+                     if (event.altKey && event.shiftKey) { // Using Alt+Shift+0 as a placeholder for str0
+                        parent.postMessage({ pluginMessage: { type: 'set-stroke', value: 0 } }, '*');
+                        event.preventDefault();
+                    }
                     break;
                 default:
                     return; // Do nothing for other keys
             }
 
-            if (newIndex !== selectedIndex) {
+            if (newIndex !== selectedIndex && !event.altKey) { // Ensure alignment doesn't change if it's a stroke command
                 selectedIndex = newIndex;
                 updateSelectedCell();
                 // Send message to plugin code to update Figma selection

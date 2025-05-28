@@ -71,9 +71,73 @@ if (figma.command === 'aa') {
         else if (msg.type === 'get-initial-visibility') { // Handle request from UI
             sendVisibilityUpdate();
         }
+        else if (msg.type === 'set-stroke') {
+            const selection = figma.currentPage.selection;
+            let appliedCount = 0;
+            for (const node of selection) {
+                if ('strokes' in node && 'strokeWeight' in node) {
+                    const strokeWeight = msg.value;
+                    // Ensure node is of a type that supports strokes and strokeWeight
+                    const strokableNode = node; // Add other types as needed
+                    if (strokeWeight > 0) {
+                        // If setting stroke to a value > 0, ensure there's a stroke paint
+                        if (strokableNode.strokes.length === 0) {
+                            strokableNode.strokes = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }]; // Default to black
+                        }
+                        strokableNode.strokeWeight = strokeWeight;
+                    }
+                    else {
+                        // If setting stroke to 0, effectively remove stroke by setting weight to 0
+                        // Or, one could remove all stroke paints: strokableNode.strokes = [];
+                        strokableNode.strokeWeight = 0;
+                    }
+                    appliedCount++;
+                }
+            }
+            if (appliedCount > 0) {
+                figma.notify(`Stroke set to ${msg.value} for ${appliedCount} layer(s).`);
+            }
+        }
     };
 }
+else if (figma.command === 'str1' || figma.command === 'str0') {
+    const selection = figma.currentPage.selection;
+    let S = selection.length;
+    if (S === 0) {
+        figma.notify('Please select at least one layer.', { error: true });
+        figma.closePlugin();
+        // Removed return statement here as figma.closePlugin() should suffice
+    }
+    else {
+        let modifiedCount = 0;
+        const strokeWeight = figma.command === 'str1' ? 1 : 0;
+        const commandName = `Set Stroke to ${strokeWeight}`;
+        for (const node of selection) {
+            if ('strokes' in node && 'strokeWeight' in node) {
+                const strokableNode = node;
+                if (strokeWeight > 0) {
+                    if (strokableNode.strokes.length === 0) {
+                        strokableNode.strokes = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }];
+                    }
+                    strokableNode.strokeWeight = strokeWeight;
+                }
+                else {
+                    strokableNode.strokeWeight = 0;
+                }
+                modifiedCount++;
+            }
+        }
+        if (modifiedCount > 0) {
+            figma.notify(`Applied "${commandName}" to ${modifiedCount} layer${modifiedCount === 1 ? '' : 's'}.`);
+        }
+        else {
+            figma.notify(`No applicable layers found for "${commandName}".`, { timeout: 3000 });
+        }
+        figma.closePlugin();
+    }
+}
 else {
+    // Existing command logic
     // Existing command logic
     const selection = figma.currentPage.selection;
     let S = selection.length; // S for "Selection"
@@ -92,16 +156,16 @@ else {
                         figma.notify(`Group "${node.name}" naturally hugs its content.`, { timeout: 2000 });
                         modifiedCount++;
                     }
-                    else if (figma.command === 'wf' || figma.command === 'hf') {
-                        figma.notify(`Cannot set "Fill container" for Group "${node.name}". Consider framing it and applying auto-layout.`, { error: true, timeout: 3500 });
-                    }
+                    // Removed specific error for Group "Fill container"
                 }
                 else if (node.type === 'FRAME' ||
                     node.type === 'COMPONENT' ||
                     node.type === 'COMPONENT_SET' ||
                     node.type === 'INSTANCE' ||
-                    node.type === 'TEXT') {
-                    const operableNode = node;
+                    node.type === 'TEXT' ||
+                    node.type === 'RECTANGLE' // Added RECTANGLE here
+                ) {
+                    const operableNode = node; // Added RectangleNode here
                     if (figma.command === 'wh') {
                         commandName = 'Width to Hug';
                         operableNode.layoutSizingHorizontal = 'HUG';
@@ -118,9 +182,7 @@ else {
                             operableNode.layoutSizingHorizontal = 'FILL';
                             modifiedCount++;
                         }
-                        else {
-                            figma.notify(`"${operableNode.name}" cannot be set to Fill Width. Parent must be an Auto Layout frame.`, { error: true, timeout: 3500 });
-                        }
+                        // Removed specific error for Fill Width
                     }
                     else if (figma.command === 'hf') {
                         commandName = 'Height to Fill';
@@ -128,9 +190,7 @@ else {
                             operableNode.layoutSizingVertical = 'FILL';
                             modifiedCount++;
                         }
-                        else {
-                            figma.notify(`"${operableNode.name}" cannot be set to Fill Height. Parent must be an Auto Layout frame.`, { error: true, timeout: 3500 });
-                        }
+                        // Removed specific error for Fill Height
                     }
                     else if (figma.command === 'p0') {
                         commandName = 'Set All Padding to 0';
@@ -143,9 +203,7 @@ else {
                             paddedNode.paddingRight = 0;
                             modifiedCount++;
                         }
-                        else {
-                            figma.notify(`Layer "${operableNode.name}" of type "${operableNode.type}" does not support padding.`, { error: true, timeout: 3000 });
-                        }
+                        // Removed specific error for padding
                     }
                     else if (figma.command === 'p16') {
                         commandName = 'Set All Padding to 16';
@@ -158,14 +216,26 @@ else {
                             paddedNode.paddingRight = 16;
                             modifiedCount++;
                         }
-                        else {
-                            figma.notify(`Layer "${operableNode.name}" of type "${operableNode.type}" does not support padding.`, { error: true, timeout: 3000 });
+                        // Removed specific error for padding
+                    }
+                    else if (figma.command === 'br8') {
+                        commandName = 'Set Border Radius to 8px';
+                        if ('cornerRadius' in operableNode) {
+                            operableNode.cornerRadius = 8;
+                            modifiedCount++;
                         }
+                        // Removed specific error for border radius
+                    }
+                    else if (figma.command === 'br0') {
+                        commandName = 'Set Border Radius to 0px';
+                        if ('cornerRadius' in operableNode) {
+                            operableNode.cornerRadius = 0;
+                            modifiedCount++;
+                        }
+                        // Removed specific error for border radius
                     }
                 }
-                else {
-                    figma.notify(`Layer "${node.name}" of type "${node.type}" does not support these specific layout operations.`, { error: true, timeout: 3000 });
-                }
+                // Removed specific error for unsupported layer types for layout operations
             }
             catch (e) {
                 figma.notify(`Error applying to "${node.name}": ${e.message}`, { error: true, timeout: 3000 });
