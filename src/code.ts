@@ -99,17 +99,17 @@ if (figma.command === 'aa') {
           if (figma.command === 'wh' || figma.command === 'hh') {
             figma.notify(`Group "${node.name}" naturally hugs its content.`, { timeout: 2000 });
             modifiedCount++;
-          } else if (figma.command === 'wf' || figma.command === 'hf') {
-            figma.notify(`Cannot set "Fill container" for Group "${node.name}". Consider framing it and applying auto-layout.`, { error: true, timeout: 3500 });
           }
+          // Removed specific error for Group "Fill container"
         } else if (
           node.type === 'FRAME' ||
           node.type === 'COMPONENT' ||
           node.type === 'COMPONENT_SET' ||
           node.type === 'INSTANCE' ||
-          node.type === 'TEXT'
+          node.type === 'TEXT' ||
+          node.type === 'RECTANGLE' // Added RECTANGLE here
         ) {
-          const operableNode = node as FrameNode | ComponentNode | ComponentSetNode | InstanceNode | TextNode;
+          const operableNode = node as FrameNode | ComponentNode | ComponentSetNode | InstanceNode | TextNode | RectangleNode; // Added RectangleNode here
 
           if (figma.command === 'wh') {
             commandName = 'Width to Hug';
@@ -124,17 +124,15 @@ if (figma.command === 'aa') {
             if (operableNode.parent && operableNode.parent.type === 'FRAME' && (operableNode.parent as FrameNode).layoutMode !== 'NONE') {
               operableNode.layoutSizingHorizontal = 'FILL';
               modifiedCount++;
-            } else {
-              figma.notify(`"${operableNode.name}" cannot be set to Fill Width. Parent must be an Auto Layout frame.`, { error: true, timeout: 3500 });
             }
+            // Removed specific error for Fill Width
           } else if (figma.command === 'hf') {
             commandName = 'Height to Fill';
             if (operableNode.parent && operableNode.parent.type === 'FRAME' && (operableNode.parent as FrameNode).layoutMode !== 'NONE') {
               operableNode.layoutSizingVertical = 'FILL';
               modifiedCount++;
-            } else {
-              figma.notify(`"${operableNode.name}" cannot be set to Fill Height. Parent must be an Auto Layout frame.`, { error: true, timeout: 3500 });
             }
+            // Removed specific error for Fill Height
           } else if (figma.command === 'p0') {
             commandName = 'Set All Padding to 0';
             if ('paddingTop' in operableNode && 'paddingBottom' in operableNode && 'paddingLeft' in operableNode && 'paddingRight' in operableNode) {
@@ -145,9 +143,8 @@ if (figma.command === 'aa') {
               paddedNode.paddingLeft = 0;
               paddedNode.paddingRight = 0;
               modifiedCount++;
-            } else {
-              figma.notify(`Layer "${operableNode.name}" of type "${operableNode.type}" does not support padding.`, { error: true, timeout: 3000 });
             }
+            // Removed specific error for padding
           } else if (figma.command === 'p16') {
             commandName = 'Set All Padding to 16';
             if ('paddingTop' in operableNode && 'paddingBottom' in operableNode && 'paddingLeft' in operableNode && 'paddingRight' in operableNode) {
@@ -158,13 +155,25 @@ if (figma.command === 'aa') {
               paddedNode.paddingLeft = 16;
               paddedNode.paddingRight = 16;
               modifiedCount++;
-            } else {
-              figma.notify(`Layer "${operableNode.name}" of type "${operableNode.type}" does not support padding.`, { error: true, timeout: 3000 });
             }
+            // Removed specific error for padding
+          } else if (figma.command === 'br8') {
+            commandName = 'Set Border Radius to 8px';
+            if ('cornerRadius' in operableNode) {
+              operableNode.cornerRadius = 8;
+              modifiedCount++;
+            }
+            // Removed specific error for border radius
+          } else if (figma.command === 'br0') {
+            commandName = 'Set Border Radius to 0px';
+            if ('cornerRadius' in operableNode) {
+              operableNode.cornerRadius = 0;
+              modifiedCount++;
+            }
+            // Removed specific error for border radius
           }
-        } else {
-          figma.notify(`Layer "${node.name}" of type "${node.type}" does not support these specific layout operations.`, { error: true, timeout: 3000 });
         }
+        // Removed specific error for unsupported layer types for layout operations
       } catch (e) {
         figma.notify(`Error applying to "${node.name}": ${(e as Error).message}`, { error: true, timeout: 3000 });
       }
