@@ -29,7 +29,7 @@ function getIndexFromAlignment(primary, counter) {
     return 4; // Default to center if no match (should not happen with valid inputs)
 }
 if (figma.command === 'aa') {
-    figma.showUI(__html__, { width: 180, height: 180, themeColors: true }); // Adjusted size
+    figma.showUI(__html__, { width: 180, height: 180, themeColors: true });
     function sendVisibilityUpdate() {
         const selection = figma.currentPage.selection;
         const hasValidSelection = selection.some(isValidAutoLayoutNode);
