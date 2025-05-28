@@ -43,11 +43,12 @@
             align-items: center;
             cursor: default;
             border-radius: 3px;
-            content: '';
+            /* content: ''; */ /* Removed as it's not standard for a div */
             background-color: var(--figma-color-icon-tertiary);
             width: 3px;
             height: 3px;
-            display: block;
+            /* display: block; */ /* Flex properties handle this better */
+            position: relative; /* For positioning distribution bars */
         }
         .grid-cell.selected {
             width: 100%;
@@ -57,6 +58,11 @@
         .grid-cell:focus {
             outline: 2px solid var(--figma-color-bg-brand);
             outline-offset: 1px;
+        }
+        .distribution-bar {
+            position: absolute;
+            background-color: var(--figma-color-bg-brand); /* A slightly different blue or use brand */
+            border-radius: 5px;
         }
     </style>
 </head>
@@ -75,18 +81,20 @@
         const gridContainer = document.querySelector('.grid-container');
         const messageContainer = document.getElementById('message-container');
 
+        // UI State
+        let selectedIndex = 4; // 0-8, 4 is center
+        let isDistributeModeVisual = false;
+        let currentLayoutMode = 'HORIZONTAL'; // 'HORIZONTAL' or 'VERTICAL', default
+        let currentFigmaAlignment = { primary: 'CENTER', counter: 'CENTER' };
+
+
         // Create 9 grid cells
         for (let i = 0; i < 9; i++) {
             const cell = document.createElement('div');
             cell.classList.add('grid-cell');
             cell.dataset.index = i;
-            // Cells are not individually focusable, the grid container is.
-            // A visual marker will indicate selection.
             alignmentGrid.appendChild(cell);
         }
-
-        // Initial selected cell (e.g., center)
-        let selectedIndex = 4; // 0-8, 4 is center
 
         function updateSelectedCell() {
             const cells = alignmentGrid.querySelectorAll('.grid-cell');
@@ -96,18 +104,85 @@
                 } else {
                     cell.classList.remove('selected');
                 }
+                // If not in distribution mode, ensure any lingering inline styles from it are cleared.
+                // This allows the CSS classes (.grid-cell, .grid-cell.selected) to take full effect.
+                if (!isDistributeModeVisual) {
+                    cell.style.backgroundColor = '';
+                    cell.style.width = '';
+                    cell.style.height = '';
+                }
             });
         }
         
-        updateSelectedCell(); // Set initial selection
+        // updateSelectedCell(); // Initial selection will be set by the first message from the plugin
 
         // Focus the grid on load
-        alignmentGrid.focus();
+        // alignmentGrid.focus(); // Will be focused when valid selection is made
 
         // Focus the grid when the window is clicked
         window.addEventListener('click', () => {
-            alignmentGrid.focus();
+            if (gridContainer.style.display !== 'none') { // Only focus if grid is visible
+                alignmentGrid.focus();
+            }
         });
+
+        function updateDistributionVisuals() {
+            const cells = alignmentGrid.querySelectorAll('.grid-cell');
+            
+            // Clear existing bars and reset any inline styles from previous distribution rendering
+            cells.forEach(cell => {
+                const existingBar = cell.querySelector('.distribution-bar');
+                if (existingBar) {
+                    existingBar.remove();
+                }
+                // Reset inline styles so CSS classes can take over if not in distribution mode,
+                // or so this function can cleanly apply new styles if in distribution mode.
+                cell.style.backgroundColor = '';
+                cell.style.width = '';
+                cell.style.height = '';
+            });
+
+            if (!isDistributeModeVisual) {
+                return; // Nothing more to do if not in distribution mode
+            }
+
+            const activeRow = Math.floor(selectedIndex / 3);
+            const activeCol = selectedIndex % 3;
+
+            const cellsInDistributionIndices = [];
+            if (currentLayoutMode === 'HORIZONTAL') {
+                for (let i = 0; i < 3; i++) cellsInDistributionIndices.push(activeRow * 3 + i);
+            } else { // VERTICAL
+                for (let i = 0; i < 3; i++) cellsInDistributionIndices.push(i * 3 + activeCol);
+            }
+
+            cellsInDistributionIndices.forEach(cellIdx => {
+                const cell = cells[cellIdx];
+                
+                // Override default/selected appearance to show bar
+                cell.classList.remove('selected'); // Remove .selected class if present
+                cell.style.backgroundColor = 'var(--figma-color-bg-secondary)'; // Match grid background (hides dot)
+                cell.style.width = 'var(--cell-size)'; // Ensure cell is full size for bar
+                cell.style.height = 'var(--cell-size)';
+
+                const bar = document.createElement('div');
+                bar.classList.add('distribution-bar');
+
+                if (currentLayoutMode === 'HORIZONTAL') {
+                    bar.style.width = '4px';
+                    bar.style.height = '100%';
+                    bar.style.left = '50%';
+                    bar.style.transform = 'translateX(-50%)';
+                } else { // VERTICAL
+                    bar.style.height = '4px';
+                    bar.style.width = '100%';
+                    bar.style.top = '50%';
+                    bar.style.transform = 'translateY(-50%)';
+                }
+                cell.appendChild(bar);
+            });
+        }
+
 
         // Keyboard navigation
         alignmentGrid.onkeydown = (event) => {
@@ -115,93 +190,155 @@
             const currentRow = Math.floor(selectedIndex / 3);
             const currentCol = selectedIndex % 3;
 
+            if (event.code === 'Space') {
+                event.preventDefault();
+                parent.postMessage({ pluginMessage: { type: 'toggle-distribution' } }, '*');
+                return; // State will be updated by message from plugin
+            }
+
+            if (isDistributeModeVisual) {
+                if (currentLayoutMode === 'HORIZONTAL') { // Distribute horizontally, arrows move counter (vertical)
+                    switch (event.key) {
+                        case 'ArrowUp':
+                            if (currentRow > 0) newIndex -= 3;
+                            break;
+                        case 'ArrowDown':
+                            if (currentRow < 2) newIndex += 3;
+                            break;
+                        case 'ArrowLeft': // No change in primary axis
+                        case 'ArrowRight':
+                            event.preventDefault();
+                            return;
+                    }
+                } else { // Distribute vertically, arrows move counter (horizontal)
+                    switch (event.key) {
+                        case 'ArrowLeft':
+                            if (currentCol > 0) newIndex -= 1;
+                            break;
+                        case 'ArrowRight':
+                            if (currentCol < 2) newIndex += 1;
+                            break;
+                        case 'ArrowUp': // No change in primary axis
+                        case 'ArrowDown':
+                            event.preventDefault();
+                            return;
+                    }
+                }
+            } else { // Default (non-distribute) mode
+                switch (event.key) {
+                    case 'ArrowUp':
+                        if (currentRow > 0) newIndex -= 3;
+                        break;
+                    case 'ArrowDown':
+                        if (currentRow < 2) newIndex += 3;
+                        break;
+                    case 'ArrowLeft':
+                        if (currentCol > 0) newIndex -= 1;
+                        break;
+                    case 'ArrowRight':
+                        if (currentCol < 2) newIndex += 1;
+                        break;
+                }
+            }
+            
+            if (event.key.startsWith('Arrow')) event.preventDefault();
+
+
             switch (event.key) {
-                case 'ArrowUp':
-                    if (currentRow > 0) newIndex -= 3;
-                    event.preventDefault();
-                    break;
-                case 'ArrowDown':
-                    if (currentRow < 2) newIndex += 3;
-                    event.preventDefault();
-                    break;
-                case 'ArrowLeft':
-                    if (currentCol > 0) newIndex -= 1;
-                    event.preventDefault();
-                    break;
-                case 'ArrowRight':
-                    if (currentCol < 2) newIndex += 1;
-                    event.preventDefault();
-                    break;
+                // Arrow cases handled above based on mode
                 case 'Escape':
                 case 'Enter': // Add Enter key to close dialog
                     parent.postMessage({ pluginMessage: { type: 'close-dialog' } }, '*');
                     event.preventDefault();
                     break;
-                case 's': // New key for stroke commands
-                    // Check for 't' + 'r' + '1' or '0' sequence or direct '1' or '0' after 's'
-                    // For simplicity, let's assume direct '1' or '0' after 's' for now
-                    // This part might need a more robust sequence detection if complex chords are needed
+                // s, t, r, 1, 0 for stroke commands - keep as is
+                case 's': 
                     break;
-                case 't': // Part of str sequence
-                    // Sequence detection logic would go here
+                case 't': 
                     break;
-                case 'r': // Part of str sequence
-                    // Sequence detection logic would go here
+                case 'r': 
                     break;
                 case '1':
-                    // Check if previous keys were 's', 't', 'r'
-                    // For now, let's assume '1' after 's'
-                    if (event.altKey && event.shiftKey) { // Using Alt+Shift+1 as a placeholder for str1
+                    if (event.altKey && event.shiftKey) { 
                         parent.postMessage({ pluginMessage: { type: 'set-stroke', value: 1 } }, '*');
                         event.preventDefault();
                     }
                     break;
                 case '0':
-                    // Check if previous keys were 's', 't', 'r'
-                    // For now, let's assume '0' after 's'
-                     if (event.altKey && event.shiftKey) { // Using Alt+Shift+0 as a placeholder for str0
+                     if (event.altKey && event.shiftKey) { 
                         parent.postMessage({ pluginMessage: { type: 'set-stroke', value: 0 } }, '*');
                         event.preventDefault();
                     }
                     break;
                 default:
-                    return; // Do nothing for other keys
+                     // If it's not an arrow key or other handled key, do nothing for alignment
+                    if (!event.key.startsWith('Arrow')) return;
             }
 
-            if (newIndex !== selectedIndex && !event.altKey) { // Ensure alignment doesn't change if it's a stroke command
+            if (newIndex !== selectedIndex && !event.altKey && event.key.startsWith('Arrow')) { 
                 selectedIndex = newIndex;
-                updateSelectedCell();
-                // Send message to plugin code to update Figma selection
+                // updateSelectedCell(); // This will be handled by the response from the plugin
                 parent.postMessage({ pluginMessage: { type: 'set-alignment', index: selectedIndex } }, '*');
             }
         };
+        
+        // Mapping from Figma alignment properties back to UI index (mirror from code.ts for UI logic)
+        const figmaAlignmentMapToIndex = {
+            'MINMIN': 0, 'CENTERMIN': 1, 'MAXMIN': 2,
+            'MINCENTER': 3, 'CENTERCENTER': 4, 'MAXCENTER': 5,
+            'MINMAX': 6, 'CENTERMAX': 7, 'MAXMAX': 8
+        };
+
+        function getIndexFromFigmaAlign(primary, counter) {
+            const key = (primary || '').replace('SPACE_BETWEEN', 'CENTER') + (counter || ''); // Treat SPACE_BETWEEN as CENTER for primary for index mapping
+            return figmaAlignmentMapToIndex[key] !== undefined ? figmaAlignmentMapToIndex[key] : 4; // Default to center
+        }
+
 
         // Listen for messages from the plugin code
         window.onmessage = (event) => {
             const message = event.data.pluginMessage;
             if (!message) return;
 
-            if (message.type === 'set-initial-alignment') {
-                if (typeof message.index === 'number' && message.index >= 0 && message.index < 9) {
-                    selectedIndex = message.index;
-                    updateSelectedCell();
-                    // Ensure grid is visible
-                }
-            } else if (message.type === 'update-visibility') {
+            if (message.type === 'update-plugin-state') {
+                isDistributeModeVisual = message.isDistributeActiveInFigma;
+                currentLayoutMode = message.layoutMode || 'HORIZONTAL'; // Default if null
+                currentFigmaAlignment.primary = message.currentFigmaPrimaryAlign;
+                currentFigmaAlignment.counter = message.currentFigmaCounterAlign;
+
                 if (message.hasValidSelection) {
                     gridContainer.style.display = 'flex';
                     messageContainer.style.display = 'none';
-                    alignmentGrid.focus(); // Focus when a valid autolayout element is selected
+                    alignmentGrid.focus();
+
+                    if (isDistributeModeVisual) {
+                        // Determine selectedIndex based on counter-axis alignment
+                        if (currentLayoutMode === 'HORIZONTAL') { // Vertical counter
+                            if (currentFigmaAlignment.counter === 'MIN') selectedIndex = 1; // Top-Center like
+                            else if (currentFigmaAlignment.counter === 'MAX') selectedIndex = 7; // Bottom-Center like
+                            else selectedIndex = 4; // Middle-Center
+                        } else { // Vertical layout, Horizontal counter
+                            if (currentFigmaAlignment.counter === 'MIN') selectedIndex = 3; // Middle-Left like
+                            else if (currentFigmaAlignment.counter === 'MAX') selectedIndex = 5; // Middle-Right like
+                            else selectedIndex = 4; // Middle-Center
+                        }
+                    } else {
+                        selectedIndex = getIndexFromFigmaAlign(currentFigmaAlignment.primary, currentFigmaAlignment.counter);
+                    }
                 } else {
                     gridContainer.style.display = 'none';
-                    messageContainer.style.display = 'block'; // Or 'flex' if you want to use flex properties for centering message
-                    alignmentGrid.blur(); // Blur when no valid autolayout element is selected
+                    messageContainer.style.display = 'block';
+                    alignmentGrid.blur();
                 }
+                updateSelectedCell();
+                updateDistributionVisuals();
             }
+            // Keep 'set-initial-alignment' for backward compatibility or remove if not used by plugin anymore
+            // else if (message.type === 'set-initial-alignment') { ... }
         };
 
-        // Request initial visibility state from the plugin
-        parent.postMessage({ pluginMessage: { type: 'get-initial-visibility' } }, '*');
+        // Request initial state from the plugin
+        parent.postMessage({ pluginMessage: { type: 'get-initial-visibility' } }, '*'); // This type is handled by plugin to send full state
 
     </script>
 </body>

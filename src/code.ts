@@ -32,52 +32,111 @@ function getIndexFromAlignment(primary: FrameNode['primaryAxisAlignItems'], coun
   return 4; // Default to center if no match (should not happen with valid inputs)
 }
 
+// Plugin state
+let pluginIsDistributeModeActive = false;
+let stashedPrimaryAxisAlignment: FrameNode['primaryAxisAlignItems'] = 'CENTER';
+let stashedCounterAxisAlignment: FrameNode['counterAxisAlignItems'] = 'CENTER';
+
 
 if (figma.command === 'aa') {
   figma.showUI(__html__, { width: 180, height: 180, themeColors: true });
 
-  function sendVisibilityUpdate() {
+  function sendCurrentStateToUI() {
     const selection = figma.currentPage.selection;
     const hasValidSelection = selection.some(isValidAutoLayoutNode);
-    figma.ui.postMessage({ type: 'update-visibility', hasValidSelection });
+    let layoutMode: FrameNode['layoutMode'] | null = null;
+    let currentFigmaPrimaryAlign: FrameNode['primaryAxisAlignItems'] | null = null;
+    let currentFigmaCounterAlign: FrameNode['counterAxisAlignItems'] | null = null;
+    let isDistributeActiveInFigma = false;
 
     if (hasValidSelection) {
-      const autoLayoutNode = selection.find(isValidAutoLayoutNode) as FrameNode | ComponentNode | InstanceNode | ComponentSetNode; // We know one exists
-      const initialPrimaryAlign = autoLayoutNode.primaryAxisAlignItems;
-      const initialCounterAlign = autoLayoutNode.counterAxisAlignItems;
-      const initialIndex = getIndexFromAlignment(initialPrimaryAlign, initialCounterAlign);
-      figma.ui.postMessage({ type: 'set-initial-alignment', index: initialIndex });
+      const autoLayoutNode = selection.find(isValidAutoLayoutNode) as FrameNode | ComponentNode | InstanceNode | ComponentSetNode;
+      layoutMode = autoLayoutNode.layoutMode;
+      currentFigmaPrimaryAlign = autoLayoutNode.primaryAxisAlignItems;
+      currentFigmaCounterAlign = autoLayoutNode.counterAxisAlignItems;
+      isDistributeActiveInFigma = currentFigmaPrimaryAlign === 'SPACE_BETWEEN';
+      
+      // Sync plugin state with Figma's actual state on selection change or load
+      pluginIsDistributeModeActive = isDistributeActiveInFigma;
+      if (!isDistributeActiveInFigma) {
+        stashedPrimaryAxisAlignment = currentFigmaPrimaryAlign;
+        stashedCounterAxisAlignment = currentFigmaCounterAlign;
+      } else {
+        // If Figma is in SPACE_BETWEEN, we need to ensure stashedCounterAxisAlignment is up-to-date
+        // stashedPrimaryAxisAlignment would have been set before entering SPACE_BETWEEN
+        stashedCounterAxisAlignment = currentFigmaCounterAlign;
+      }
     }
+
+    figma.ui.postMessage({
+      type: 'update-plugin-state',
+      hasValidSelection,
+      layoutMode,
+      currentFigmaPrimaryAlign,
+      currentFigmaCounterAlign,
+      isDistributeActiveInFigma
+    });
   }
 
   // Send initial state
-  sendVisibilityUpdate();
+  sendCurrentStateToUI();
 
   // Listen for selection changes
   figma.on('selectionchange', () => {
-    sendVisibilityUpdate();
+    sendCurrentStateToUI();
   });
 
   figma.ui.onmessage = msg => {
     if (msg.type === 'set-alignment') {
       const selection = figma.currentPage.selection;
-      const [primaryAlign, counterAlign] = alignmentMap[msg.index];
-      let appliedCount = 0;
+      let primaryAlign: FrameNode['primaryAxisAlignItems'];
+      let counterAlign: FrameNode['counterAxisAlignItems'];
+
+      if (pluginIsDistributeModeActive) {
+        primaryAlign = 'SPACE_BETWEEN';
+        // For SPACE_BETWEEN, the UI index (0-8) needs to map to counter-axis MIN, CENTER, MAX
+        // Assuming horizontal layout: 0,1,2 -> MIN; 3,4,5 -> CENTER; 6,7,8 -> MAX for counter (vertical)
+        // Assuming vertical layout: 0,3,6 -> MIN; 1,4,7 -> CENTER; 2,5,8 -> MAX for counter (horizontal)
+        // The UI will send an index that already considers this.
+        // For now, let's assume msg.index directly gives the correct mapping for the counter axis
+        // based on the current layout direction (which UI will handle).
+        // The alignmentMap gives [primary, counter]. We need the counter part.
+        counterAlign = alignmentMap[msg.index][1]; // This might need refinement based on UI's index logic in distribute mode
+        stashedCounterAxisAlignment = counterAlign; // Update stashed counter alignment
+      } else {
+        [primaryAlign, counterAlign] = alignmentMap[msg.index];
+        stashedPrimaryAxisAlignment = primaryAlign;
+        stashedCounterAxisAlignment = counterAlign;
+      }
+
       for (const node of selection) {
         if (isValidAutoLayoutNode(node)) {
           node.primaryAxisAlignItems = primaryAlign;
           node.counterAxisAlignItems = counterAlign;
-          appliedCount++;
         }
       }
-      // Optional: notify user of change
-      // if (appliedCount > 0) {
-      //   figma.notify(`Alignment set for ${appliedCount} layer(s).`);
-      // }
+      sendCurrentStateToUI(); // Refresh UI with potentially new state from Figma
+    } else if (msg.type === 'toggle-distribution') {
+      pluginIsDistributeModeActive = !pluginIsDistributeModeActive;
+      const selection = figma.currentPage.selection;
+      for (const node of selection) {
+        if (isValidAutoLayoutNode(node)) {
+          if (pluginIsDistributeModeActive) {
+            // When entering distribute mode, primary is SPACE_BETWEEN, counter is the stashed counter.
+            node.primaryAxisAlignItems = 'SPACE_BETWEEN';
+            node.counterAxisAlignItems = stashedCounterAxisAlignment;
+          } else {
+            // When exiting distribute mode, revert to stashed primary and counter.
+            node.primaryAxisAlignItems = stashedPrimaryAxisAlignment;
+            node.counterAxisAlignItems = stashedCounterAxisAlignment;
+          }
+        }
+      }
+      sendCurrentStateToUI();
     } else if (msg.type === 'close-dialog') {
       figma.closePlugin();
-    } else if (msg.type === 'get-initial-visibility') { // Handle request from UI
-      sendVisibilityUpdate();
+    } else if (msg.type === 'get-initial-visibility') { // Renamed to get-initial-state or similar
+      sendCurrentStateToUI();
     } else if (msg.type === 'set-stroke') {
       const selection = figma.currentPage.selection;
       let appliedCount = 0;
