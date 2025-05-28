@@ -1,80 +1,61 @@
 "use strict";
 // This plugin will allow users to quickly set layout properties
-// Log the command to the console for debugging
-console.log('Figma command:', figma.command);
-// Helper function to check if a node is a valid Auto Layout frame
+// This plugin will allow users to quickly set layout properties
+// AND provides a command input UI.
+// Log the command to the console for debugging, if any command was used to launch
+if (figma.command) {
+    console.log('Figma command used to launch:', figma.command);
+}
+// --- Helper functions from existing code (can be used by future commands) ---
 function isValidAutoLayoutNode(node) {
     return (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET') && node.layoutMode !== 'NONE';
 }
-// Mapping from UI index (0-8) to Figma alignment properties
-// [primaryAxisAlignItems, counterAxisAlignItems]
 const alignmentMap = {
-    0: ['MIN', 'MIN'], // Top Left
-    1: ['CENTER', 'MIN'], // Top Center
-    2: ['MAX', 'MIN'], // Top Right
-    3: ['MIN', 'CENTER'], // Middle Left
-    4: ['CENTER', 'CENTER'], // Middle Center
-    5: ['MAX', 'CENTER'], // Middle Right
-    6: ['MIN', 'MAX'], // Bottom Left
-    7: ['CENTER', 'MAX'], // Bottom Center
-    8: ['MAX', 'MAX'] // Bottom Right
+    0: ['MIN', 'MIN'], 1: ['CENTER', 'MIN'], 2: ['MAX', 'MIN'],
+    3: ['MIN', 'CENTER'], 4: ['CENTER', 'CENTER'], 5: ['MAX', 'CENTER'],
+    6: ['MIN', 'MAX'], 7: ['CENTER', 'MAX'], 8: ['MAX', 'MAX']
 };
-// Mapping from Figma alignment properties back to UI index
 function getIndexFromAlignment(primary, counter) {
     for (const key in alignmentMap) {
         if (alignmentMap[key][0] === primary && alignmentMap[key][1] === counter) {
             return parseInt(key, 10);
         }
     }
-    return 4; // Default to center if no match (should not happen with valid inputs)
+    return 4; // Default to center
 }
-if (figma.command === 'aa') {
-    figma.showUI(__html__, { width: 180, height: 180, themeColors: true });
-    function sendVisibilityUpdate() {
-        const selection = figma.currentPage.selection;
-        const hasValidSelection = selection.some(isValidAutoLayoutNode);
-        figma.ui.postMessage({ type: 'update-visibility', hasValidSelection });
-        if (hasValidSelection) {
-            const autoLayoutNode = selection.find(isValidAutoLayoutNode); // We know one exists
-            const initialPrimaryAlign = autoLayoutNode.primaryAxisAlignItems;
-            const initialCounterAlign = autoLayoutNode.counterAxisAlignItems;
-            const initialIndex = getIndexFromAlignment(initialPrimaryAlign, initialCounterAlign);
-            figma.ui.postMessage({ type: 'set-initial-alignment', index: initialIndex });
-        }
+// --- End of helper functions ---
+// --- New Command Input UI Logic ---
+// Show the command input UI. Dimensions are for the content area.
+// Figma adds its own title bar.
+figma.showUI(__html__, { width: 300, height: 40, title: "Lazer", themeColors: true });
+// Send initial focus message to the UI
+figma.ui.postMessage({ type: 'focus-plugin-input' });
+// Listen for selection changes on the Figma canvas
+figma.on('selectionchange', () => {
+    // When selection changes, tell the UI to re-focus its input
+    // The UI itself will handle deactivating if it was in an active input state
+    figma.ui.postMessage({ type: 'focus-plugin-input' });
+});
+// Handle messages from the UI
+figma.ui.onmessage = msg => {
+    if (msg.type === 'submit-command') {
+        const command = msg.command;
+        console.log('Received command from UI:', command);
+        // Placeholder: Notify user that command was submitted
+        // Later, this will parse and execute commands
+        figma.notify(`Command: "${command}" submitted! (Placeholder)`, { timeout: 2000 });
+        // Send a success message back to UI to display
+        figma.ui.postMessage({ type: 'command-success', message: `Processed: ${command}` });
+        // No need to explicitly re-focus here, as 'command-success' in ui.html already does.
     }
-    // Send initial state
-    sendVisibilityUpdate();
-    // Listen for selection changes
-    figma.on('selectionchange', () => {
-        sendVisibilityUpdate();
-    });
-    figma.ui.onmessage = msg => {
-        if (msg.type === 'set-alignment') {
-            const selection = figma.currentPage.selection;
-            const [primaryAlign, counterAlign] = alignmentMap[msg.index];
-            let appliedCount = 0;
-            for (const node of selection) {
-                if (isValidAutoLayoutNode(node)) {
-                    node.primaryAxisAlignItems = primaryAlign;
-                    node.counterAxisAlignItems = counterAlign;
-                    appliedCount++;
-                }
-            }
-            // Optional: notify user of change
-            // if (appliedCount > 0) {
-            //   figma.notify(`Alignment set for ${appliedCount} layer(s).`);
-            // }
-        }
-        else if (msg.type === 'close-dialog') {
-            figma.closePlugin();
-        }
-        else if (msg.type === 'get-initial-visibility') { // Handle request from UI
-            sendVisibilityUpdate();
-        }
-    };
-}
-else {
-    // Existing command logic
+    // Add other message types from UI if needed in the future
+};
+// --- Existing Menu/Quick Action Command Logic ---
+// This part handles commands invoked directly via Figma's menu or quick actions.
+// It will run if figma.command is set.
+if (figma.command && figma.command !== 'aa') { // 'aa' is handled by the old UI, which we are replacing.
+    // For now, if 'aa' is somehow triggered, it will do nothing here.
+    // We might want to remove 'aa' from manifest.json later or make it open the new UI.
     const selection = figma.currentPage.selection;
     let S = selection.length; // S for "Selection"
     if (S === 0 && figma.command !== 'aa') { // Ensure this doesn't run for 'aa' if it somehow reaches here
