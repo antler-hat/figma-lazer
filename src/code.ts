@@ -199,6 +199,36 @@ if (figma.command === 'aa') {
     }
     figma.closePlugin();
   }
+} else if (figma.command === 'fll' || figma.command === 'fll0') {
+  const selection = figma.currentPage.selection;
+  let S = selection.length;
+  if (S === 0) {
+    figma.notify('Please select at least one layer.', { error: true });
+    figma.closePlugin();
+  } else {
+    let modifiedCount = 0;
+    const commandName = figma.command === 'fll' ? 'Add Default Fill' : 'Remove All Fills';
+
+    for (const node of selection) {
+      // Check if the node is of a type that supports fills
+      if ('fills' in node) {
+        const fillableNode = node as SceneNode & { fills: readonly Paint[] | typeof figma.mixed }; // Type assertion
+        if (figma.command === 'fll') {
+          fillableNode.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+        } else { // figma.command === 'fll0'
+          fillableNode.fills = [];
+        }
+        modifiedCount++;
+      }
+    }
+
+    if (modifiedCount > 0) {
+      figma.notify(`Applied "${commandName}" to ${modifiedCount} layer${modifiedCount === 1 ? '' : 's'}.`);
+    } else {
+      figma.notify(`No applicable layers found for "${commandName}".`, { timeout: 3000 });
+    }
+    figma.closePlugin();
+  }
 } else {
   // Existing command logic
   // Existing command logic

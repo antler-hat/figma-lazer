@@ -48,6 +48,14 @@
     {
       "name": "str0: Set Stroke to 0",
       "command": "str0"
+    },
+    {
+      "name": "fll: Add Default Fill",
+      "command": "fll"
+    },
+    {
+      "name": "fll0: Remove All Fills",
+      "command": "fll0"
     }
   ],
   "ui": "dist/ui.html"
