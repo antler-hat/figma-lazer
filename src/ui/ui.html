@@ -133,6 +133,7 @@
                     event.preventDefault();
                     break;
                 case 'Escape':
+                case 'Enter': // Add Enter key to close dialog
                     parent.postMessage({ pluginMessage: { type: 'close-dialog' } }, '*');
                     event.preventDefault();
                     break;
