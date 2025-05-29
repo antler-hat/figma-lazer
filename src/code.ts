@@ -273,6 +273,31 @@ if (figma.command === 'aa') {
   if (S === 0 && figma.command !== 'aa') { 
     figma.notify('Please select at least one layer.', { error: true });
     figma.closePlugin();
+  } else if (figma.command === 'gap0' || figma.command === 'gap8' || figma.command === 'gap16') {
+    const selection = figma.currentPage.selection;
+    // Redundant check, but good for safety, already handled by the outer structure for non 'aa' commands
+    // if (selection.length === 0) { 
+    //   figma.notify('Please select at least one layer.', { error: true });
+    //   figma.closePlugin();
+    // } else {
+      let modifiedCount = 0;
+      const gapValue = figma.command === 'gap0' ? 0 : figma.command === 'gap8' ? 8 : 16;
+      const commandName = `Set Gap to ${gapValue}`;
+  
+      for (const node of selection) {
+        if (isValidAutoLayoutNode(node)) { // Check if it's an autolayout frame, component, instance or component_set
+          node.itemSpacing = gapValue;
+          modifiedCount++;
+        }
+      }
+  
+      if (modifiedCount > 0) {
+        figma.notify(`Applied "${commandName}" to ${modifiedCount} layer${modifiedCount === 1 ? '' : 's'}.`);
+      } else {
+        figma.notify(`No applicable Auto Layout layers found for "${commandName}".`, { timeout: 3000 });
+      }
+      figma.closePlugin();
+    // }
   } else if (figma.command !== 'aa') { 
     let modifiedCount = 0;
     let commandName = '';

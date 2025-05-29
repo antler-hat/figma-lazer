@@ -56,6 +56,18 @@
     {
       "name": "fll0: Remove All Fills",
       "command": "fll0"
+    },
+    {
+      "name": "gap0: Set Gap to 0",
+      "command": "gap0"
+    },
+    {
+      "name": "gap8: Set Gap to 8",
+      "command": "gap8"
+    },
+    {
+      "name": "gap16: Set Gap to 16",
+      "command": "gap16"
     }
   ],
   "ui": "dist/ui.html"
