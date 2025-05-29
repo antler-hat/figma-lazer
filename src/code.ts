@@ -326,7 +326,7 @@ figma.ui.onmessage = msg => {
       figma.closePlugin();
       break;
 
-    // Messages from ui.html (for 'aa' command)
+    // Messages from auto-alignment-control.html (for 'aa' command)
     case 'set-alignment':
       // This logic is specific to the 'aa' command's UI and state
       if (figma.command === 'aa') {

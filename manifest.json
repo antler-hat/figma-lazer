@@ -102,5 +102,5 @@
       "command": "setGap"
     }
   ],
-  "ui": "dist/ui.html"
+  "ui": "dist/auto-alignment-control.html"
 }
