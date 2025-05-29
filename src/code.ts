@@ -204,7 +204,7 @@ if (figma.command === 'aa') {
       }
     }
   };
-} else if (figma.command === 'str1' || figma.command === 'str0') {
+} else if (figma.command === 's1' || figma.command === 's0') {
   const selection = figma.currentPage.selection;
   let S = selection.length;
   if (S === 0) {
@@ -212,7 +212,7 @@ if (figma.command === 'aa') {
     figma.closePlugin();
   } else {
     let modifiedCount = 0;
-    const strokeWeight = figma.command === 'str1' ? 1 : 0;
+    const strokeWeight = figma.command === 's1' ? 1 : 0;
     const commandName = `Set Stroke to ${strokeWeight}`;
 
     for (const node of selection) {
@@ -237,7 +237,7 @@ if (figma.command === 'aa') {
     }
     figma.closePlugin();
   }
-} else if (figma.command === 'fll' || figma.command === 'fll0') {
+} else if (figma.command === 'fill' || figma.command === 'fll0') {
   const selection = figma.currentPage.selection;
   let S = selection.length;
   if (S === 0) {
@@ -245,12 +245,12 @@ if (figma.command === 'aa') {
     figma.closePlugin();
   } else {
     let modifiedCount = 0;
-    const commandName = figma.command === 'fll' ? 'Add Default Fill' : 'Remove All Fills';
+    const commandName = figma.command === 'fill' ? 'Add Default Fill' : 'Remove All Fills';
 
     for (const node of selection) {
       if ('fills' in node) {
         const fillableNode = node as SceneNode & { fills: readonly Paint[] | typeof figma.mixed }; 
-        if (figma.command === 'fll') {
+        if (figma.command === 'fill') {
           fillableNode.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
         } else { 
           fillableNode.fills = [];

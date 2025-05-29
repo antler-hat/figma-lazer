@@ -6,67 +6,67 @@
   "editorType": ["figma"],
   "menu": [
     {
-      "name": "wh: Set Width to Hug",
+      "name": "-wh: Set Width to Hug",
       "command": "wh"
     },
     {
-      "name": "hh: Set Height to Hug",
+      "name": "-hh: Set Height to Hug",
       "command": "hh"
     },
     {
-      "name": "wf: Set Width to Fill",
+      "name": "-wf: Set Width to Fill",
       "command": "wf"
     },
     {
-      "name": "hf: Set Height to Fill",
+      "name": "-hf: Set Height to Fill",
       "command": "hf"
     },
     {
-      "name": "p0: Set All Padding to 0",
+      "name": "-p0: Set All Padding to 0",
       "command": "p0"
     },
     {
-      "name": "p16: Set All Padding to 16",
+      "name": "-p16: Set All Padding to 16",
       "command": "p16"
     },
     {
-      "name": "aa: Set Auto Layout Alignment",
+      "name": "-aa: Set Auto Layout Alignment",
       "command": "aa"
     },
     {
-      "name": "br8: Set Border Radius to 8px",
+      "name": "-br8: Set Border Radius to 8px",
       "command": "br8"
     },
     {
-      "name": "br0: Set Border Radius to 0px",
+      "name": "-br0: Set Border Radius to 0px",
       "command": "br0"
     },
     {
-      "name": "str1: Set Stroke to 1",
-      "command": "str1"
+      "name": "-s1: Set Stroke to 1",
+      "command": "s1"
     },
     {
-      "name": "str0: Set Stroke to 0",
-      "command": "str0"
+      "name": "-s0: Set Stroke to 0",
+      "command": "s0"
     },
     {
-      "name": "fll: Add Default Fill",
-      "command": "fll"
+      "name": "-f: Add Default Fill",
+      "command": "fill"
     },
     {
-      "name": "fll0: Remove All Fills",
+      "name": "-f0: Remove All Fills",
       "command": "fll0"
     },
     {
-      "name": "gap0: Set Gap to 0",
+      "name": "-g0: Set Gap to 0",
       "command": "gap0"
     },
     {
-      "name": "gap8: Set Gap to 8",
+      "name": "-g8: Set Gap to 8",
       "command": "gap8"
     },
     {
-      "name": "gap16: Set Gap to 16",
+      "name": "-g16: Set Gap to 16",
       "command": "gap16"
     }
   ],
