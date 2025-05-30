@@ -2,32 +2,13 @@
 
 Lazer is a plugin for Figma that provides quick commands to adjust the layout and appearance properties of selected elements.
 
-# Disclaimer
+The idea is to leave the keyboard less by creating pseudo shortcuts. By bringing up the Actions input with `command + K` or `command + /` and then typing a short code (eg. `w.h`), the fuzzy search will bring your focus to an action you can execute by pressing enter.
 
-I used Gemini 2.5 Pro to build this. Please excuse jank and AI-ness.
+Disclaimer: I used Gemini 2.5 Pro to build this. Please excuse jank and AI-ness.
 
 ## Features
 
 This plugin allows you to quickly adjust:
-
-*   **Layout Sizing:**
-    *   Set width to Hug Contents, Fill Container, or a custom value.
-    *   Set height to Hug Contents, Fill Container, or a custom value.
-*   **Padding:**
-    *   Set all padding to 0, 16, or a custom value.
-*   **Auto Layout:**
-    *   Set Auto Layout alignment using a visual control.
-    *   Adjust Gap to 0, 8, 16, or a custom value.
-*   **Appearance:**
-    *   Set Border Radius to 0px, 8px, or a custom value.
-    *   Set Stroke weight to 0, 1, or a custom value.
-    *   Set Stroke color to a custom value.
-    *   Add a default Fill or remove all fills.
-    *   Set Fill color to a custom value.
-
-## Commands
-
-The following commands are available from the Figma plugin menu:
 
 ### Width & Height
 *   `w.h - Set Width to Hug`
@@ -65,16 +46,12 @@ The following commands are available from the Figma plugin menu:
 *   `f.0 - Remove All Fills`
 *   `f.. - Set Fill Colour` (prompts for custom value)
 
-## Installation
-
-Currently unavailable in Figma Community, so in the meantime:
-In Figma, go to **Plugins** > **Development** > **Import plugin from manifest...** and select the `manifest.json` file from this project.
-
 ## Usage
 
 1.  Select one or more layers in your Figma file.
-2.  Open the Lazer plugin from the plugin menu (e.g., Right-click > Plugins > Lazer, or find it in the Figma main menu under Plugins).
-3.  Click on the desired command to apply the layout or appearance adjustment.
+2.  Open the Actions input with `command + K` or `command + /`
+3.  Type the short code for the command (eg. `w.h`)
+4.  Press enter (assuming you have your desired command in focus)
     *   Many commands apply adjustments directly (e.g., `w.h - Set Width to Hug`).
     *   The `aa - Set Auto Layout Alignment` command will open a dialog for visual alignment selection.
     *   Commands ending with `..` (e.g., `p.. - Set Padding`) will prompt you to enter a custom value.
