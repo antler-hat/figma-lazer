@@ -71,14 +71,61 @@
             }
         };
 
+        const numericPropertyTypes = [
+            'setPadding',
+            'setHeight',
+            'setWidth',
+            'setBorderRadius',
+            'setStrokeWidth',
+            'setGap'
+        ];
+
+        function evaluateMathematicalExpression(expression) {
+            if (typeof expression !== 'string') {
+                return null;
+            }
+            // Sanitize the expression: allow numbers, decimal points, operators +, -, *, /, and parentheses.
+            // Remove any other characters.
+            const sanitizedExpression = expression.replace(/[^-()\\d/*+.]/g, '');
+
+            // Check if the sanitized expression is empty or doesn't look like a valid start of an expression
+            if (!sanitizedExpression || !/^[-\\d(]/.test(sanitizedExpression)) {
+                 // if it doesn't contain any operator, it's not an expression we should evaluate
+                if (!/[+\\-*/]/.test(expression)) return expression; // return original if no operators
+                return null; // otherwise, it's likely an invalid attempt at an expression
+            }
+
+            try {
+                // Using Function constructor for safer evaluation than eval()
+                const result = new Function('return ' + sanitizedExpression)();
+                if (typeof result === 'number' && isFinite(result)) {
+                    return result;
+                }
+                return null; // Not a valid number or infinite
+            } catch (error) {
+                console.error('Error evaluating expression:', error);
+                return null; // Evaluation failed
+            }
+        }
+
         inputField.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
+                let valueToSubmit = inputField.value;
+                if (numericPropertyTypes.includes(currentPropertyType)) {
+                    const evaluatedValue = evaluateMathematicalExpression(inputField.value);
+                    if (evaluatedValue !== null && typeof evaluatedValue === 'number') {
+                        valueToSubmit = String(evaluatedValue);
+                    }
+                    // If evaluation returns null (error or not a math expression),
+                    // we'll submit the original inputField.value,
+                    // and let the plugin's parseFloat handle it.
+                }
                 parent.postMessage({
                     pluginMessage: {
                         type: 'submit-value',
                         propertyType: currentPropertyType,
-                        value: inputField.value
+                        value: valueToSubmit
                     }
                 }, '*');
             } else if (event.key === 'Escape') {
