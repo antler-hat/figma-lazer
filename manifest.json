@@ -1,6 +1,6 @@
 {
   "name": "Lazer",
-  "id": "figma-lazer-plugin",
+  "id": "1510096136362846988",
   "api": "1.0.0",
   "main": "dist/code.js",
   "editorType": ["figma"],
