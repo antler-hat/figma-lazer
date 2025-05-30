@@ -4,7 +4,8 @@
   "main": "dist/code.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "mkdir -p dist && tsc -p tsconfig.json && cp src/ui/auto-alignment-control.html dist/auto-alignment-control.html"
+    "build": "mkdir -p dist && esbuild src/code.ts --bundle --outfile=dist/code.js --platform=browser --loader:.html=text && cp src/ui/auto-alignment-control.html dist/auto-alignment-control.html",
+    "watch": "esbuild src/code.ts --bundle --outfile=dist/code.js --platform=browser --loader:.html=text --watch --sourcemap && cp src/ui/auto-alignment-control.html dist/auto-alignment-control.html"
   },
   "keywords": [],
   "author": "",
@@ -12,6 +13,7 @@
   "description": "",
   "devDependencies": {
     "@figma/plugin-typings": "^1.113.0",
+    "esbuild": "^0.25.5",
     "typescript": "^5.8.3"
   }
 }

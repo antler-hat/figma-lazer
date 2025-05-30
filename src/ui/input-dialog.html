@@ -9,7 +9,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
             background-color: var(--figma-color-bg);
-            color: var(--figma-color-text);
+            color: var(--figma-color-text-secondary);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -17,11 +17,13 @@
             height: 100vh;
             padding: 10px;
             box-sizing: border-box;
+            font-size: 11px;
         }
         #prompt-title {
-            font-size: 12px;
-            margin-bottom: 8px;
+            margin-bottom: 15px;
             text-align: center;
+            color: var(--figma-color-text-secondary);
+            font-size: 11px;
         }
         #value-input {
             width: calc(100% - 20px); /* Full width minus padding */
@@ -29,8 +31,8 @@
             border-radius: 4px;
             border: 1px solid var(--figma-color-border);
             background-color: var(--figma-color-bg-secondary);
-            color: var(--figma-color-text);
-            font-size: 13px;
+            color: var(--figma-color-text-secondary);
+            font-size: 11px;
             box-sizing: border-box;
         }
         #value-input:focus {
@@ -41,7 +43,7 @@
     </style>
 </head>
 <body>
-    <div id="prompt-title">Set Value</div>
+    <div id="prompt-title"><span>Set Value</span></div>
     <input type="text" id="value-input">
     <script>
         const inputField = document.getElementById('value-input');

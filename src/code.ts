@@ -3,91 +3,7 @@
 // Log the command to the console for debugging
 console.log('Figma command:', figma.command);
 
-const __html_input_dialog__ = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Input Value</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            background-color: var(--figma-color-bg);
-            color: var(--figma-color-text);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            padding: 10px;
-            box-sizing: border-box;
-        }
-        #prompt-title {
-            font-size: 12px;
-            margin-bottom: 8px;
-            text-align: center;
-        }
-        #value-input {
-            width: calc(100% - 20px); /* Full width minus padding */
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid var(--figma-color-border);
-            background-color: var(--figma-color-bg-secondary);
-            color: var(--figma-color-text);
-            font-size: 13px;
-            box-sizing: border-box;
-        }
-        #value-input:focus {
-            outline: 2px solid var(--figma-color-bg-brand);
-            outline-offset: 0px;
-            border-color: var(--figma-color-bg-brand-tertiary);
-        }
-    </style>
-</head>
-<body>
-    <div id="prompt-title">Set Value</div>
-    <input type="text" id="value-input">
-    <script>
-        const inputField = document.getElementById('value-input');
-        const promptTitle = document.getElementById('prompt-title');
-        let currentPropertyType = '';
-
-        inputField.focus();
-
-        window.onmessage = (event) => {
-            const message = event.data.pluginMessage;
-            if (message && message.type === 'init-input-dialog') {
-                promptTitle.textContent = message.title || 'Enter Value';
-                currentPropertyType = message.propertyType;
-                if (message.currentValue !== undefined && message.currentValue !== null) {
-                    inputField.value = String(message.currentValue);
-                    inputField.select();
-                } else {
-                    inputField.value = '';
-                }
-                inputField.focus();
-            }
-        };
-
-        inputField.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                parent.postMessage({
-                    pluginMessage: {
-                        type: 'submit-value',
-                        propertyType: currentPropertyType,
-                        value: inputField.value
-                    }
-                }, '*');
-            } else if (event.key === 'Escape') {
-                event.preventDefault();
-                parent.postMessage({ pluginMessage: { type: 'close-plugin' } }, '*');
-            }
-        });
-    <\/script> 
-</body>
-</html>`;
+import inputDialogHtmlContent from './ui/input-dialog.html';
 
 // Helper function to parse color string (hex) to Figma RGB
 function parseColor(colorString: string): RGB | null {
@@ -465,7 +381,7 @@ if (figma.command === 'aa') {
       figma.notify("Padding is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
-      figma.showUI(__html_input_dialog__, { width: 250, height: 100, title: "Set Padding" });
+      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Padding" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setPadding', title: 'Set All Padding (e.g., 10)', currentValue: applicableNode.paddingLeft === applicableNode.paddingRight && applicableNode.paddingLeft === applicableNode.paddingTop && applicableNode.paddingLeft === applicableNode.paddingBottom ? applicableNode.paddingLeft : null });
     }
   }
@@ -480,7 +396,7 @@ if (figma.command === 'aa') {
       figma.notify("Height is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
-      figma.showUI(__html_input_dialog__, { width: 250, height: 100, title: "Set Height" });
+      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Height" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setHeight', title: 'Set Height (e.g., 100)', currentValue: applicableNode.height });
     }
   }
@@ -495,7 +411,7 @@ if (figma.command === 'aa') {
       figma.notify("Width is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
-      figma.showUI(__html_input_dialog__, { width: 250, height: 100, title: "Set Width" });
+      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Width" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setWidth', title: 'Set Width (e.g., 100)', currentValue: applicableNode.width });
     }
   }
@@ -510,7 +426,7 @@ if (figma.command === 'aa') {
       figma.notify("Border Radius is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
-      figma.showUI(__html_input_dialog__, { width: 250, height: 100, title: "Set Border Radius" });
+      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Border Radius" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setBorderRadius', title: 'Set Border Radius (e.g., 8)', currentValue: applicableNode.cornerRadius !== figma.mixed ? applicableNode.cornerRadius : null });
     }
   }
@@ -525,7 +441,7 @@ if (figma.command === 'aa') {
       figma.notify("Stroke Width is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
-      figma.showUI(__html_input_dialog__, { width: 250, height: 100, title: "Set Stroke Width" });
+      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Stroke Width" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setStrokeWidth', title: 'Set Stroke Width (e.g., 1)', currentValue: applicableNode.strokeWeight !== figma.mixed ? applicableNode.strokeWeight : null });
     }
   }
@@ -550,7 +466,7 @@ if (figma.command === 'aa') {
       figma.notify("Stroke Color is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
-      figma.showUI(__html_input_dialog__, { width: 250, height: 100, title: "Set Stroke Color" });
+      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Stroke Color" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setStrokeColour', title: 'Set Stroke Color (e.g., #FF0000)', currentValue: currentColorHex });
     }
   }
@@ -575,7 +491,7 @@ if (figma.command === 'aa') {
       figma.notify("Fill Color is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
-      figma.showUI(__html_input_dialog__, { width: 250, height: 100, title: "Set Fill Color" });
+      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Fill Color" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setFillColour', title: 'Set Fill Color (e.g., #00FF00)', currentValue: currentColorHex });
     }
   }
@@ -590,7 +506,7 @@ if (figma.command === 'aa') {
       figma.notify("Gap is not applicable to any selected Auto Layout layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
-      figma.showUI(__html_input_dialog__, { width: 250, height: 100, title: "Set Gap" });
+      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Gap" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setGap', title: 'Set Gap (e.g., 8)', currentValue: applicableNode.itemSpacing });
     }
   }
