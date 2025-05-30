@@ -6,67 +6,67 @@
   "editorType": ["figma"],
   "menu": [
     {
-      "name": "w.h: Set Width to Hug",
+      "name": "w.h - Set Width to Hug",
       "command": "wh"
     },
     {
-      "name": "h.h: Set Height to Hug",
+      "name": "h.h - Set Height to Hug",
       "command": "hh"
     },
     {
-      "name": "w.f: Set Width to Fill",
+      "name": "w.f - Set Width to Fill",
       "command": "wf"
     },
     {
-      "name": "h.f: Set Height to Fill",
+      "name": "h.f - Set Height to Fill",
       "command": "hf"
     },
     {
-      "name": "p.0: Set All Padding to 0",
+      "name": "p.0 - Set All Padding to 0",
       "command": "p0"
     },
     {
-      "name": "p.16: Set All Padding to 16",
+      "name": "p.16 - Set All Padding to 16",
       "command": "p16"
     },
     {
-      "name": "aa: Set Auto Layout Alignment",
+      "name": "aa - Set Auto Layout Alignment",
       "command": "aa"
     },
     {
-      "name": "br.8: Set Border Radius to 8px",
+      "name": "br.8 - Set Border Radius to 8px",
       "command": "br8"
     },
     {
-      "name": "br.0: Set Border Radius to 0px",
+      "name": "br.0 - Set Border Radius to 0px",
       "command": "br0"
     },
     {
-      "name": "s.1: Set Stroke to 1",
+      "name": "s.1 - Set Stroke to 1",
       "command": "s1"
     },
     {
-      "name": "s.0: Set Stroke to 0",
+      "name": "s.0 - Set Stroke to 0",
       "command": "s0"
     },
     {
-      "name": "f.1: Add Default Fill",
+      "name": "f.1 - Add Default Fill",
       "command": "fill1"
     },
     {
-      "name": "f.0: Remove All Fills",
+      "name": "f.0 - Remove All Fills",
       "command": "fill0"
     },
     {
-      "name": "g.0: Set Gap to 0",
+      "name": "g.0 - Set Gap to 0",
       "command": "gap0"
     },
     {
-      "name": "g.8: Set Gap to 8",
+      "name": "g.8 - Set Gap to 8",
       "command": "gap8"
     },
     {
-      "name": "g.16: Set Gap to 16",
+      "name": "g.16 - Set Gap to 16",
       "command": "gap16"
     },
     {
