@@ -1,5 +1,7 @@
 # Lazer
 
+<img width="526" alt="image" src="https://github.com/user-attachments/assets/eaa1e929-53f7-40d9-b63b-87db789d7de0" />
+
 Lazer is a plugin for Figma that provides quick commands to adjust the layout and appearance properties of selected elements.
 
 The idea is to leave the keyboard less by creating pseudo shortcuts. By bringing up the Actions input with `command + K` or `command + /` and then typing a short code (eg. `w.h`), the fuzzy search will bring your focus to an action you can execute by pressing enter.
