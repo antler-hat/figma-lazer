@@ -81,6 +81,140 @@ function isValidAutoLayoutNode(node: SceneNode): node is FrameNode | ComponentNo
   return (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET') && node.layoutMode !== 'NONE';
 }
 
+// --- START HELPER FUNCTIONS FOR PREFILLING INPUTS ---
+
+/**
+ * Gets a common property value from a list of nodes.
+ * - If only one applicable node is selected, its property value is returned (if not figma.mixed).
+ * - If multiple applicable nodes are selected, checks if they all share the same value.
+ * - Returns null if values differ, any value is figma.mixed, or no applicable nodes are found.
+ */
+function getCommonPropertyValue(
+  nodes: readonly SceneNode[],
+  propertyName: keyof SceneNode | 'itemSpacing' | 'paddingLeft' | 'paddingRight' | 'paddingTop' | 'paddingBottom' | 'cornerRadius' | 'strokeWeight' | 'width' | 'height', // Add specific keys for type safety
+  isApplicable: (node: SceneNode) => boolean
+): any | null {
+  const applicableNodes = nodes.filter(isApplicable);
+
+  if (applicableNodes.length === 0) {
+    return null;
+  }
+
+  const firstValue = (applicableNodes[0] as any)[propertyName];
+
+  if (firstValue === figma.mixed) {
+    return null;
+  }
+
+  if (applicableNodes.length === 1) {
+    return firstValue;
+  }
+
+  for (let i = 1; i < applicableNodes.length; i++) {
+    const currentValue = (applicableNodes[i] as any)[propertyName];
+    if (currentValue === figma.mixed || currentValue !== firstValue) {
+      return null;
+    }
+  }
+  return firstValue;
+}
+
+/**
+ * Gets a common padding value if all applicable nodes have uniform padding
+ * and this uniform padding is the same across all nodes.
+ */
+function getCommonPaddingValue(nodes: readonly SceneNode[]): number | null {
+  const applicableNodes = nodes.filter(
+    node =>
+      'paddingLeft' in node &&
+      'paddingRight' in node &&
+      'paddingTop' in node &&
+      'paddingBottom' in node
+  ) as (FrameNode | ComponentNode | InstanceNode | ComponentSetNode)[];
+
+  if (applicableNodes.length === 0) {
+    return null;
+  }
+
+  let commonPadding: number | null = null;
+
+  for (let i = 0; i < applicableNodes.length; i++) {
+    const node = applicableNodes[i];
+    if (
+      (node.paddingLeft as (number | typeof figma.mixed)) === figma.mixed ||
+      (node.paddingRight as (number | typeof figma.mixed)) === figma.mixed ||
+      (node.paddingTop as (number | typeof figma.mixed)) === figma.mixed ||
+      (node.paddingBottom as (number | typeof figma.mixed)) === figma.mixed
+    ) {
+      return null; // Mixed padding on a node
+    }
+
+    // At this point, we know they are numbers, so direct comparison is fine.
+    const isUniform =
+      node.paddingLeft === node.paddingRight &&
+      node.paddingLeft === node.paddingTop &&
+      node.paddingLeft === node.paddingBottom;
+
+    if (!isUniform) {
+      return null; // Not uniform padding on this node
+    }
+
+    if (i === 0) {
+      commonPadding = node.paddingLeft; // Set from the first node
+    } else if (node.paddingLeft !== commonPadding) {
+      return null; // Different uniform padding values across nodes
+    }
+  }
+  return commonPadding; // Can be 0 or any other number
+}
+
+/**
+ * Gets a common solid paint color hex string if the first solid paint
+ * of all applicable nodes has the same color.
+ */
+function getCommonSolidPaintColorHex(
+  nodes: readonly SceneNode[],
+  paintProperty: 'fills' | 'strokes'
+): string | null {
+  const applicableNodes = nodes.filter(node => paintProperty in node) as (SceneNode & { [K in typeof paintProperty]: readonly Paint[] | typeof figma.mixed })[];
+
+  if (applicableNodes.length === 0) {
+    return null;
+  }
+
+  let commonColorHex: string | null = null;
+
+  for (let i = 0; i < applicableNodes.length; i++) {
+    const node = applicableNodes[i];
+    const paints = node[paintProperty];
+
+    if (paints === figma.mixed || !Array.isArray(paints) || paints.length === 0) {
+      return null; // Mixed paints, no paints, or not an array
+    }
+
+    const firstSolidPaint = paints.find(p => p.type === 'SOLID' && p.visible !== false) as SolidPaint | undefined;
+
+    if (!firstSolidPaint || !firstSolidPaint.color) {
+      return null; // No solid paint or no color object
+    }
+    
+    const { r, g, b } = firstSolidPaint.color;
+    const rHex = Math.round(r * 255).toString(16).padStart(2, '0');
+    const gHex = Math.round(g * 255).toString(16).padStart(2, '0');
+    const bHex = Math.round(b * 255).toString(16).padStart(2, '0');
+    const currentColorHex = `${rHex}${gHex}${bHex}`.toUpperCase();
+
+    if (i === 0) {
+      commonColorHex = currentColorHex;
+    } else if (currentColorHex !== commonColorHex) {
+      return null; // Different colors
+    }
+  }
+  return commonColorHex;
+}
+
+// --- END HELPER FUNCTIONS FOR PREFILLING INPUTS ---
+
 // Mapping from UI index (0-8) to Figma alignment properties
 // [primaryAxisAlignItems, counterAxisAlignItems]
 // For a HORIZONTAL layout frame:
@@ -422,13 +556,16 @@ if (figma.command === 'aa') {
     figma.notify("Please select at least one layer.", { error: true });
     figma.closePlugin();
   } else {
-    const applicableNode = selection.find(node => 'paddingLeft' in node) as FrameNode | undefined;
-    if (!applicableNode) {
+    const isPaddingApplicable = (node: SceneNode): node is FrameNode | ComponentNode | InstanceNode | ComponentSetNode =>
+      'paddingLeft' in node && 'paddingRight' in node && 'paddingTop' in node && 'paddingBottom' in node;
+
+    if (!selection.some(isPaddingApplicable)) {
       figma.notify("Padding is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
+      const commonPadding = getCommonPaddingValue(selection);
       figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Padding" });
-      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setPadding', title: 'Set All Padding (e.g., 10)', currentValue: applicableNode.paddingLeft === applicableNode.paddingRight && applicableNode.paddingLeft === applicableNode.paddingTop && applicableNode.paddingLeft === applicableNode.paddingBottom ? applicableNode.paddingLeft : null });
+      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setPadding', title: 'Set All Padding (e.g., 10)', currentValue: commonPadding });
     }
   }
 } else if (figma.command === 'setHeight') {
@@ -437,13 +574,16 @@ if (figma.command === 'aa') {
     figma.notify("Please select at least one layer.", { error: true });
     figma.closePlugin();
   } else {
-    const applicableNode = selection.find(node => 'resize' in node && 'height' in node) as (SceneNode & {resize: (width: number, height: number) => void, height: number}) | undefined;
-    if (!applicableNode) {
+    const isHeightApplicable = (node: SceneNode): node is SceneNode & { height: number, resize: Function } =>
+      'resize' in node && 'height' in node && typeof (node as any).height === 'number';
+
+    if (!selection.some(isHeightApplicable)) {
       figma.notify("Height is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
+      const commonHeight = getCommonPropertyValue(selection, 'height', isHeightApplicable);
       figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Height" });
-      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setHeight', title: 'Set Height (e.g., 100)', currentValue: applicableNode.height });
+      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setHeight', title: 'Set Height (e.g., 100)', currentValue: commonHeight });
     }
   }
 } else if (figma.command === 'setWidth') {
@@ -452,13 +592,16 @@ if (figma.command === 'aa') {
     figma.notify("Please select at least one layer.", { error: true });
     figma.closePlugin();
   } else {
-    const applicableNode = selection.find(node => 'resize' in node && 'width' in node) as (SceneNode & {resize: (width: number, height: number) => void, width: number}) | undefined;
-    if (!applicableNode) {
+    const isWidthApplicable = (node: SceneNode): node is SceneNode & { width: number, resize: Function } =>
+      'resize' in node && 'width' in node && typeof (node as any).width === 'number';
+
+    if (!selection.some(isWidthApplicable)) {
       figma.notify("Width is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
+      const commonWidth = getCommonPropertyValue(selection, 'width', isWidthApplicable);
       figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Width" });
-      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setWidth', title: 'Set Width (e.g., 100)', currentValue: applicableNode.width });
+      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setWidth', title: 'Set Width (e.g., 100)', currentValue: commonWidth });
     }
   }
 } else if (figma.command === 'setBorderRadius') {
@@ -467,13 +610,16 @@ if (figma.command === 'aa') {
     figma.notify("Please select at least one layer.", { error: true });
     figma.closePlugin();
   } else {
-    const applicableNode = selection.find(node => 'cornerRadius' in node) as (SceneNode & {cornerRadius: number | typeof figma.mixed}) | undefined;
-    if (!applicableNode) {
+    const isBorderRadiusApplicable = (node: SceneNode): node is SceneNode & { cornerRadius: number | typeof figma.mixed } =>
+      'cornerRadius' in node;
+
+    if (!selection.some(isBorderRadiusApplicable)) {
       figma.notify("Border Radius is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
+      const commonBorderRadius = getCommonPropertyValue(selection, 'cornerRadius', isBorderRadiusApplicable);
       figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Border Radius" });
-      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setBorderRadius', title: 'Set Border Radius (e.g., 8)', currentValue: applicableNode.cornerRadius !== figma.mixed ? applicableNode.cornerRadius : null });
+      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setBorderRadius', title: 'Set Border Radius (e.g., 8)', currentValue: commonBorderRadius });
     }
   }
 } else if (figma.command === 'setStrokeWidth') {
@@ -482,13 +628,16 @@ if (figma.command === 'aa') {
     figma.notify("Please select at least one layer.", { error: true });
     figma.closePlugin();
   } else {
-    const applicableNode = selection.find(node => 'strokeWeight' in node) as (SceneNode & {strokeWeight: number | typeof figma.mixed}) | undefined;
-    if (!applicableNode) {
+    const isStrokeWeightApplicable = (node: SceneNode): node is SceneNode & { strokeWeight: number | typeof figma.mixed } =>
+      'strokeWeight' in node;
+
+    if (!selection.some(isStrokeWeightApplicable)) {
       figma.notify("Stroke Width is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
+      const commonStrokeWeight = getCommonPropertyValue(selection, 'strokeWeight', isStrokeWeightApplicable);
       figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Stroke Width" });
-      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setStrokeWidth', title: 'Set Stroke Width (e.g., 1)', currentValue: applicableNode.strokeWeight !== figma.mixed ? applicableNode.strokeWeight : null });
+      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setStrokeWidth', title: 'Set Stroke Width (e.g., 1)', currentValue: commonStrokeWeight });
     }
   }
 } else if (figma.command === 'setStrokeColour') {
@@ -497,23 +646,16 @@ if (figma.command === 'aa') {
     figma.notify("Please select at least one layer.", { error: true });
     figma.closePlugin();
   } else {
-    const applicableNode = selection.find(node => 'strokes' in node && (node as any).strokes.length > 0 && (node as any).strokes[0].type === 'SOLID') as (SceneNode & {strokes: readonly Paint[]}) | undefined;
-    let currentColorHex: string | null = null;
-    if (applicableNode) {
-        const solidPaint = applicableNode.strokes[0] as SolidPaint;
-        if (solidPaint.color) {
-            const r = Math.round(solidPaint.color.r * 255);
-            const g = Math.round(solidPaint.color.g * 255);
-            const b = Math.round(solidPaint.color.b * 255);
-            currentColorHex = `${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-        }
-    }
-    if (!selection.some(node => 'strokes' in node)) { // Simplified check
+    const isStrokeColorApplicable = (node: SceneNode): node is SceneNode & { strokes: readonly Paint[] | typeof figma.mixed } =>
+      'strokes' in node;
+
+    if (!selection.some(isStrokeColorApplicable)) {
       figma.notify("Stroke Color is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
+      const commonStrokeColorHex = getCommonSolidPaintColorHex(selection, 'strokes');
       figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Stroke Color" });
-      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setStrokeColour', title: 'Set Stroke Color (e.g., #FF0000)', currentValue: currentColorHex });
+      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setStrokeColour', title: 'Set Stroke Color (e.g., #FF0000)', currentValue: commonStrokeColorHex });
     }
   }
 } else if (figma.command === 'setFillColour') {
@@ -522,23 +664,16 @@ if (figma.command === 'aa') {
     figma.notify("Please select at least one layer.", { error: true });
     figma.closePlugin();
   } else {
-    const applicableNode = selection.find(node => 'fills' in node && (node as any).fills.length > 0 && (node as any).fills[0].type === 'SOLID') as (SceneNode & {fills: readonly Paint[]}) | undefined;
-    let currentColorHex: string | null = null;
-    if (applicableNode) {
-        const solidPaint = applicableNode.fills[0] as SolidPaint;
-        if (solidPaint.color) {
-            const r = Math.round(solidPaint.color.r * 255);
-            const g = Math.round(solidPaint.color.g * 255);
-            const b = Math.round(solidPaint.color.b * 255);
-            currentColorHex = `${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-        }
-    }
-    if (!selection.some(node => 'fills' in node)) { // Simplified check
+    const isFillColorApplicable = (node: SceneNode): node is SceneNode & { fills: readonly Paint[] | typeof figma.mixed } =>
+      'fills' in node;
+
+    if (!selection.some(isFillColorApplicable)) {
       figma.notify("Fill Color is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
+      const commonFillColorHex = getCommonSolidPaintColorHex(selection, 'fills');
       figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Fill Color" });
-      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setFillColour', title: 'Set Fill Color (e.g., #00FF00)', currentValue: currentColorHex });
+      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setFillColour', title: 'Set Fill Color (e.g., #00FF00)', currentValue: commonFillColorHex });
     }
   }
 } else if (figma.command === 'setGap') {
@@ -547,13 +682,14 @@ if (figma.command === 'aa') {
     figma.notify("Please select at least one layer.", { error: true });
     figma.closePlugin();
   } else {
-    const applicableNode = selection.find(isValidAutoLayoutNode) as FrameNode | undefined;
-    if (!applicableNode) {
+    // isValidAutoLayoutNode already checks for itemSpacing applicability implicitly
+    if (!selection.some(isValidAutoLayoutNode)) {
       figma.notify("Gap is not applicable to any selected Auto Layout layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
+      const commonGap = getCommonPropertyValue(selection, 'itemSpacing', isValidAutoLayoutNode);
       figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Gap" });
-      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setGap', title: 'Set Gap (e.g., 8)', currentValue: applicableNode.itemSpacing });
+      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setGap', title: 'Set Gap (e.g., 8)', currentValue: commonGap });
     }
   }
 } else if (figma.command === 's1' || figma.command === 's0') {

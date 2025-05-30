@@ -49,7 +49,6 @@
         window.onmessage = (event) => {
             const message = event.data.pluginMessage;
             if (message && message.type === 'init-input-dialog') {
-                promptTitle.textContent = message.title || 'Enter Value';
                 currentPropertyType = message.propertyType;
                 if (message.currentValue !== undefined && message.currentValue !== null) {
                     inputField.value = String(message.currentValue);
