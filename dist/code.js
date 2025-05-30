@@ -9,7 +9,7 @@
     <title>Input Value</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, "system-ui", "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, SFProLocalRange;
             margin: 0;
             background-color: var(--figma-color-bg);
             color: var(--figma-color-text-secondary);
@@ -22,16 +22,11 @@
             box-sizing: border-box;
             font-size: 11px;
         }
-        #prompt-title {
-            margin-bottom: 15px;
-            text-align: center;
-            color: var(--figma-color-text-secondary);
-            font-size: 11px;
-        }
+
         #value-input {
             width: calc(100% - 20px); /* Full width minus padding */
             padding: 8px;
-            border-radius: 4px;
+            border-radius: 5px;
             border: 1px solid var(--figma-color-border);
             background-color: var(--figma-color-bg-secondary);
             color: var(--figma-color-text-secondary);
@@ -46,11 +41,9 @@
     </style>
 </head>
 <body>
-    <div id="prompt-title"><span>Set Value</span></div>
     <input type="text" id="value-input">
     <script>
         const inputField = document.getElementById('value-input');
-        const promptTitle = document.getElementById('prompt-title');
         let currentPropertyType = '';
 
         // Focus the input field when the UI is shown
