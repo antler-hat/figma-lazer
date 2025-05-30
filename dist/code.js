@@ -96,18 +96,58 @@
 
   // src/code.ts
   console.log("Figma command:", figma.command);
+  var colorNameToHex = {
+    "white": "FFFFFF",
+    "black": "000000",
+    "red": "FF0000",
+    "green": "00FF00",
+    "blue": "0000FF",
+    "yellow": "FFFF00",
+    "cyan": "00FFFF",
+    "magenta": "FF00FF",
+    "silver": "C0C0C0",
+    "gray": "808080",
+    "grey": "808080",
+    "maroon": "800000",
+    "olive": "808000",
+    "purple": "800080",
+    "teal": "008080",
+    "navy": "000080",
+    "gold": "FFD700",
+    "orange": "FFA500",
+    "pink": "FFC0CB",
+    "brown": "A52A2A",
+    "beige": "F5F5DC",
+    "ivory": "FFFFF0",
+    "khaki": "F0E68C",
+    "lavender": "E6E6FA",
+    "lime": "00FF00",
+    // Same as green
+    "salmon": "FA8072",
+    "skyblue": "87CEEB",
+    "violet": "EE82EE",
+    "transparent": "00000000"
+    // Special case, though Figma handles opacity separately
+  };
   function parseColor(colorString) {
     if (!colorString) return null;
-    let hex = colorString.trim();
+    let hex = colorString.trim().toLowerCase();
+    if (colorNameToHex[hex]) {
+      hex = colorNameToHex[hex];
+    }
     if (hex.startsWith("#")) {
       hex = hex.substring(1);
     }
-    if (!/^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$/.test(hex)) {
-      figma.notify("Invalid color format. Use #RRGGBB or RRGGBB.", { error: true });
+    if (!/^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{4}$|^[0-9A-Fa-f]{6}$|^[0-9A-Fa-f]{8}$/.test(hex)) {
+      figma.notify("Invalid color format. Use a name, #RGB, #RRGGBB, or #AARRGGBB.", { error: true });
       return null;
     }
     if (hex.length === 3) {
       hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    } else if (hex.length === 4) {
+      hex = hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+    } else if (hex.length === 8) {
+      hex = hex.substring(2);
     }
     const bigint = parseInt(hex, 16);
     const r = (bigint >> 16 & 255) / 255;

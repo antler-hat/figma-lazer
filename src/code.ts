@@ -5,22 +5,68 @@ console.log('Figma command:', figma.command);
 
 import inputDialogHtmlContent from './ui/input-dialog.html';
 
-// Helper function to parse color string (hex) to Figma RGB
+// Helper function to parse color string (hex or name) to Figma RGB
+
+const colorNameToHex: { [key: string]: string } = {
+  "white": "FFFFFF",
+  "black": "000000",
+  "red": "FF0000",
+  "green": "00FF00",
+  "blue": "0000FF",
+  "yellow": "FFFF00",
+  "cyan": "00FFFF",
+  "magenta": "FF00FF",
+  "silver": "C0C0C0",
+  "gray": "808080",
+  "grey": "808080",
+  "maroon": "800000",
+  "olive": "808000",
+  "purple": "800080",
+  "teal": "008080",
+  "navy": "000080",
+  "gold": "FFD700",
+  "orange": "FFA500",
+  "pink": "FFC0CB",
+  "brown": "A52A2A",
+  "beige": "F5F5DC",
+  "ivory": "FFFFF0",
+  "khaki": "F0E68C",
+  "lavender": "E6E6FA",
+  "lime": "00FF00", // Same as green
+  "salmon": "FA8072",
+  "skyblue": "87CEEB",
+  "violet": "EE82EE",
+  "transparent": "00000000" // Special case, though Figma handles opacity separately
+};
+
 function parseColor(colorString: string): RGB | null {
   if (!colorString) return null;
-  let hex = colorString.trim();
+  let hex = colorString.trim().toLowerCase();
+
+  // Check if it's a known color name
+  if (colorNameToHex[hex]) {
+    hex = colorNameToHex[hex];
+  }
+
   if (hex.startsWith('#')) {
     hex = hex.substring(1);
   }
-  // Allow 3, 6 hex characters
-  if (!/^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$/.test(hex)) {
-    figma.notify("Invalid color format. Use #RRGGBB or RRGGBB.", { error: true });
+
+  // Allow 3, 4, 6, or 8 hex characters (for alpha)
+  // For this function, we only care about RGB, alpha is handled by Figma's Paint object opacity
+  if (!/^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{4}$|^[0-9A-Fa-f]{6}$|^[0-9A-Fa-f]{8}$/.test(hex)) {
+    figma.notify("Invalid color format. Use a name, #RGB, #RRGGBB, or #AARRGGBB.", { error: true });
     return null;
   }
 
   if (hex.length === 3) {
     hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+  } else if (hex.length === 4) { // #ARGB to #AARRGGBB, then take RRGGBB
+    hex = hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3]; // We ignore alpha here, Figma handles opacity separately
+  } else if (hex.length === 8) { // AARRGGBB, take RRGGBB
+    hex = hex.substring(2); // We ignore alpha here
   }
+  // If hex.length is 6, it's already in RRGGBB format
 
   const bigint = parseInt(hex, 16);
   const r = ((bigint >> 16) & 255) / 255;
