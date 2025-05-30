@@ -2,6 +2,10 @@
 
 Lazer is a plugin for Figma that provides quick commands to adjust the layout and appearance properties of selected elements.
 
+# Disclaimer
+
+I used Gemini 2.5 Pro to build this. Please excuse jank and AI-ness.
+
 ## Features
 
 This plugin allows you to quickly adjust:
