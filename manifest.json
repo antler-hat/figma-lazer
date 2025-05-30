@@ -1,6 +1,6 @@
 {
   "name": "Lazer",
-  "id": "1510096136362846988",
+  "id": "1510266761765016786",
   "api": "1.0.0",
   "main": "dist/code.js",
   "networkAccess": { "allowedDomains": ["none"] },
