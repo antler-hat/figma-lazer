@@ -102,13 +102,19 @@
                 event.preventDefault();
                 let valueToSubmit = inputField.value;
                 if (numericPropertyTypes.includes(currentPropertyType)) {
-                    const evaluatedValue = evaluateMathematicalExpression(inputField.value);
-                    if (evaluatedValue !== null && typeof evaluatedValue === 'number') {
-                        valueToSubmit = String(evaluatedValue);
+                    // If the input contains '%', send it raw for backend processing.
+                    // Otherwise, try to evaluate it as a mathematical expression.
+                    if (inputField.value.includes('%') && (currentPropertyType === 'setWidth' || currentPropertyType === 'setHeight')) {
+                        valueToSubmit = inputField.value; // Send raw string for width/height with %
+                    } else {
+                        const evaluatedValue = evaluateMathematicalExpression(inputField.value);
+                        if (evaluatedValue !== null && typeof evaluatedValue === 'number') {
+                            valueToSubmit = String(evaluatedValue);
+                        }
+                        // If evaluation returns null (error or not a math expression that doesn't contain '%'),
+                        // we'll submit the original inputField.value,
+                        // and let the plugin's parseFloat handle it.
                     }
-                    // If evaluation returns null (error or not a math expression),
-                    // we'll submit the original inputField.value,
-                    // and let the plugin's parseFloat handle it.
                 }
                 parent.postMessage({
                     pluginMessage: {

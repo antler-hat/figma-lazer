@@ -105,13 +105,19 @@
                 event.preventDefault();
                 let valueToSubmit = inputField.value;
                 if (numericPropertyTypes.includes(currentPropertyType)) {
-                    const evaluatedValue = evaluateMathematicalExpression(inputField.value);
-                    if (evaluatedValue !== null && typeof evaluatedValue === 'number') {
-                        valueToSubmit = String(evaluatedValue);
+                    // If the input contains '%', send it raw for backend processing.
+                    // Otherwise, try to evaluate it as a mathematical expression.
+                    if (inputField.value.includes('%') && (currentPropertyType === 'setWidth' || currentPropertyType === 'setHeight')) {
+                        valueToSubmit = inputField.value; // Send raw string for width/height with %
+                    } else {
+                        const evaluatedValue = evaluateMathematicalExpression(inputField.value);
+                        if (evaluatedValue !== null && typeof evaluatedValue === 'number') {
+                            valueToSubmit = String(evaluatedValue);
+                        }
+                        // If evaluation returns null (error or not a math expression that doesn't contain '%'),
+                        // we'll submit the original inputField.value,
+                        // and let the plugin's parseFloat handle it.
                     }
-                    // If evaluation returns null (error or not a math expression),
-                    // we'll submit the original inputField.value,
-                    // and let the plugin's parseFloat handle it.
                 }
                 parent.postMessage({
                     pluginMessage: {
@@ -271,6 +277,58 @@
     }
     return commonColorHex;
   }
+  function calculateSizeFromPercentageString(node, targetProperty, expression) {
+    if (!node.parent || node.parent.type === "PAGE" || !("width" in node.parent) || !("height" in node.parent)) {
+      figma.notify("Selected layer needs a valid parent (e.g., Frame, Group) for percentage sizing.", { error: true, timeout: 3e3 });
+      return null;
+    }
+    const parentDimension = targetProperty === "width" ? node.parent.width : node.parent.height;
+    if (typeof parentDimension !== "number") {
+      figma.notify("Parent dimension is not a valid number.", { error: true, timeout: 3e3 });
+      return null;
+    }
+    const regex = /^(\d+(?:\.\d+)?)%\s*(?:([+\-*/])\s*(\d+(?:\.\d+)?))?$/;
+    const match = expression.trim().match(regex);
+    if (!match) {
+      figma.notify("Invalid percentage format. Use e.g., '50%', '50% - 10', '25.5% + 5'.", { error: true, timeout: 3e3 });
+      return null;
+    }
+    const percentage = parseFloat(match[1]);
+    const operator = match[2];
+    const operand = match[3] ? parseFloat(match[3]) : void 0;
+    if (isNaN(percentage) || operand !== void 0 && isNaN(operand)) {
+      figma.notify("Invalid number in percentage expression.", { error: true, timeout: 3e3 });
+      return null;
+    }
+    let calculatedValue = percentage / 100 * parentDimension;
+    if (operator && operand !== void 0) {
+      switch (operator) {
+        case "+":
+          calculatedValue += operand;
+          break;
+        case "-":
+          calculatedValue -= operand;
+          break;
+        case "*":
+          calculatedValue *= operand;
+          break;
+        case "/":
+          if (operand === 0) {
+            figma.notify("Cannot divide by zero in percentage expression.", { error: true, timeout: 3e3 });
+            return null;
+          }
+          calculatedValue /= operand;
+          break;
+        default:
+          figma.notify("Invalid operator in percentage expression.", { error: true, timeout: 3e3 });
+          return null;
+      }
+    }
+    if (calculatedValue < 0) {
+      return 0;
+    }
+    return calculatedValue;
+  }
   var alignmentMap = {
     0: ["MIN", "MIN"],
     // Top Left in UI grid
@@ -324,30 +382,50 @@
                 }
                 break;
               case "setHeight":
-                if ("resize" in node) {
-                  const num = parseFloat(value);
-                  if (!isNaN(num) && num >= 0) {
-                    if ("layoutSizingVertical" in node) node.layoutSizingVertical = "FIXED";
-                    node.resize(node.width, num);
-                    modifiedCount++;
-                    notifyMessage = `Height set to ${num}`;
+                if ("resize" in node && "height" in node) {
+                  let finalHeight = null;
+                  if (typeof value === "string" && value.includes("%")) {
+                    finalHeight = calculateSizeFromPercentageString(node, "height", value);
                   } else {
-                    figma.notify("Invalid height value.", { error: true });
+                    const num = parseFloat(value);
+                    if (!isNaN(num) && num >= 0) {
+                      finalHeight = num;
+                    }
+                  }
+                  if (finalHeight !== null && finalHeight >= 0) {
+                    if ("layoutSizingVertical" in node) node.layoutSizingVertical = "FIXED";
+                    node.resize(node.width, finalHeight);
+                    modifiedCount++;
+                    notifyMessage = `Height set to ${parseFloat(finalHeight.toFixed(2))}`;
+                  } else if (finalHeight === null) {
+                    if (!(typeof value === "string" && value.includes("%"))) {
+                      figma.notify("Invalid height value.", { error: true });
+                    }
                     figma.closePlugin();
                     return;
                   }
                 }
                 break;
               case "setWidth":
-                if ("resize" in node) {
-                  const num = parseFloat(value);
-                  if (!isNaN(num) && num >= 0) {
-                    if ("layoutSizingHorizontal" in node) node.layoutSizingHorizontal = "FIXED";
-                    node.resize(num, node.height);
-                    modifiedCount++;
-                    notifyMessage = `Width set to ${num}`;
+                if ("resize" in node && "width" in node) {
+                  let finalWidth = null;
+                  if (typeof value === "string" && value.includes("%")) {
+                    finalWidth = calculateSizeFromPercentageString(node, "width", value);
                   } else {
-                    figma.notify("Invalid width value.", { error: true });
+                    const num = parseFloat(value);
+                    if (!isNaN(num) && num >= 0) {
+                      finalWidth = num;
+                    }
+                  }
+                  if (finalWidth !== null && finalWidth >= 0) {
+                    if ("layoutSizingHorizontal" in node) node.layoutSizingHorizontal = "FIXED";
+                    node.resize(finalWidth, node.height);
+                    modifiedCount++;
+                    notifyMessage = `Width set to ${parseFloat(finalWidth.toFixed(2))}`;
+                  } else if (finalWidth === null) {
+                    if (!(typeof value === "string" && value.includes("%"))) {
+                      figma.notify("Invalid width value.", { error: true });
+                    }
                     figma.closePlugin();
                     return;
                   }
@@ -572,7 +650,7 @@
       } else {
         const commonPadding = getCommonPaddingValue(selection);
         figma.showUI(input_dialog_default, { themeColors: true, width: 250, height: 100, title: "Set Padding" });
-        figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setPadding", title: "Set All Padding (e.g., 10)", currentValue: commonPadding });
+        figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setPadding", title: "Set All Padding (e.g., 10 or 10+5)", currentValue: commonPadding });
       }
     }
   } else if (figma.command === "setHeight") {
@@ -588,7 +666,7 @@
       } else {
         const commonHeight = getCommonPropertyValue(selection, "height", isHeightApplicable);
         figma.showUI(input_dialog_default, { themeColors: true, width: 250, height: 100, title: "Set Height" });
-        figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setHeight", title: "Set Height (e.g., 100)", currentValue: commonHeight });
+        figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setHeight", title: "Set Height (e.g., 100, 50%, 25% + 10)", currentValue: commonHeight });
       }
     }
   } else if (figma.command === "setWidth") {
@@ -604,7 +682,7 @@
       } else {
         const commonWidth = getCommonPropertyValue(selection, "width", isWidthApplicable);
         figma.showUI(input_dialog_default, { themeColors: true, width: 250, height: 100, title: "Set Width" });
-        figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setWidth", title: "Set Width (e.g., 100)", currentValue: commonWidth });
+        figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setWidth", title: "Set Width (e.g., 100, 50%, 25% + 10)", currentValue: commonWidth });
       }
     }
   } else if (figma.command === "setBorderRadius") {
@@ -620,7 +698,7 @@
       } else {
         const commonBorderRadius = getCommonPropertyValue(selection, "cornerRadius", isBorderRadiusApplicable);
         figma.showUI(input_dialog_default, { themeColors: true, width: 250, height: 100, title: "Set Border Radius" });
-        figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setBorderRadius", title: "Set Border Radius (e.g., 8)", currentValue: commonBorderRadius });
+        figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setBorderRadius", title: "Set Border Radius (e.g., 8 or 2*3)", currentValue: commonBorderRadius });
       }
     }
   } else if (figma.command === "setStrokeWidth") {
@@ -636,7 +714,7 @@
       } else {
         const commonStrokeWeight = getCommonPropertyValue(selection, "strokeWeight", isStrokeWeightApplicable);
         figma.showUI(input_dialog_default, { themeColors: true, width: 250, height: 100, title: "Set Stroke Width" });
-        figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setStrokeWidth", title: "Set Stroke Width (e.g., 1)", currentValue: commonStrokeWeight });
+        figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setStrokeWidth", title: "Set Stroke Width (e.g., 1 or 1+1)", currentValue: commonStrokeWeight });
       }
     }
   } else if (figma.command === "setStrokeColour") {
@@ -683,7 +761,7 @@
       } else {
         const commonGap = getCommonPropertyValue(selection, "itemSpacing", isValidAutoLayoutNode);
         figma.showUI(input_dialog_default, { themeColors: true, width: 250, height: 100, title: "Set Gap" });
-        figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setGap", title: "Set Gap (e.g., 8)", currentValue: commonGap });
+        figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setGap", title: "Set Gap (e.g., 8 or 10-2)", currentValue: commonGap });
       }
     }
   } else if (figma.command === "s1" || figma.command === "s0") {
