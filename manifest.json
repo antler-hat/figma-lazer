@@ -36,11 +36,11 @@
       "command": "al.."
     },
     {
-      "name": "al.h - Set Autolayout to Horizontal",
+      "name": "al.h - Set Auto Layout to Horizontal",
       "command": "al.h"
     },
     {
-      "name": "al.v - Set Autolayout to Vertical",
+      "name": "al.v - Set Auto Layout to Vertical",
       "command": "al.v"
     },
     {
