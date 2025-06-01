@@ -1116,7 +1116,7 @@
     "s0": (sel) => setStrokeWeightForSelection(0, sel),
     "s1": (sel) => setStrokeWeightForSelection(1, sel),
     "fill0": handleFillRemoveAll,
-    "fill1": handleFillDefault,
+    "fillwhite": handleFillDefault,
     "gap0": (sel) => setGapForSelection(0, sel),
     "gap8": (sel) => setGapForSelection(8, sel),
     "gap16": (sel) => setGapForSelection(16, sel),
