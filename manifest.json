@@ -32,16 +32,16 @@
       "command": "p16"
     },
     {
-      "name": "aa - Set Auto Layout Alignment",
-      "command": "aa"
+      "name": "al.. - Set Auto Layout Alignment",
+      "command": "al.."
     },
     {
-      "name": "aa.h - Set Autolayout to Horizontal",
-      "command": "aa.h"
+      "name": "al.h - Set Autolayout to Horizontal",
+      "command": "al.h"
     },
     {
-      "name": "aa.v - Set Autolayout to Vertical",
-      "command": "aa.v"
+      "name": "al.v - Set Autolayout to Vertical",
+      "command": "al.v"
     },
     {
       "name": "br.8 - Set Border Radius to 8px",
