@@ -4,7 +4,7 @@ node_modules/
 # Compiled output (optional, but good practice for some workflows if others build)
 # For this plugin, since dist/code.js is needed to run, we will commit it for now.
 # If you prefer to build it on checkout, you can add dist/ to .gitignore
-dist/
+dist/code.js
 
 # IDE and OS specific files
 .DS_Store
