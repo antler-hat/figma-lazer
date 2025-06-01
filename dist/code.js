@@ -846,88 +846,142 @@
       }
       figma.closePlugin();
     } else if (commandsRequiringSelection.includes(figma.command) || ["wh", "hh", "wf", "hf", "p0", "p16", "br8", "br0"].includes(figma.command)) {
-      let modifiedCount = 0;
-      let commandName = "";
-      for (const node of selection) {
-        try {
-          if (node.type === "GROUP") {
-            commandName = figma.command === "wh" ? "Width to Hug" : figma.command === "hh" ? "Height to Hug" : figma.command === "wf" ? "Width to Fill" : "Height to Fill";
-            if (figma.command === "wh" || figma.command === "hh") {
-              figma.notify(`Group "${node.name}" naturally hugs its content.`, { timeout: 2e3 });
-            } else {
-              figma.notify(`Fill/Fixed sizing is not directly applicable to Groups. Consider Frame with Auto Layout.`, { timeout: 3e3 });
-            }
-          } else if (node.type === "FRAME" || node.type === "COMPONENT" || node.type === "COMPONENT_SET" || node.type === "INSTANCE" || node.type === "TEXT" || node.type === "RECTANGLE") {
-            const operableNode = node;
-            if (figma.command === "wh") {
-              commandName = "Width to Hug";
-              operableNode.layoutSizingHorizontal = "HUG";
-              modifiedCount++;
-            } else if (figma.command === "hh") {
-              commandName = "Height to Hug";
-              operableNode.layoutSizingVertical = "HUG";
-              modifiedCount++;
-            } else if (figma.command === "wf") {
-              commandName = "Width to Fill";
-              if (operableNode.parent && operableNode.parent.type === "FRAME" && operableNode.parent.layoutMode !== "NONE") {
-                operableNode.layoutSizingHorizontal = "FILL";
-                modifiedCount++;
+      (async () => {
+        let modifiedCount = 0;
+        let commandName = "";
+        for (const node of selection) {
+          try {
+            if (node.type === "GROUP") {
+              commandName = figma.command === "wh" ? "Width to Hug" : figma.command === "hh" ? "Height to Hug" : figma.command === "wf" ? "Width to Fill" : "Height to Fill";
+              if (figma.command === "wh" || figma.command === "hh") {
+                figma.notify(`Group "${node.name}" naturally hugs its content.`, { timeout: 2e3 });
               } else {
-                figma.notify(`"${operableNode.name}" cannot be set to Fill Width as its parent is not an Auto Layout frame.`, { timeout: 3e3 });
+                figma.notify(`Fill/Fixed sizing is not directly applicable to Groups. Consider Frame with Auto Layout.`, { timeout: 3e3 });
               }
-            } else if (figma.command === "hf") {
-              commandName = "Height to Fill";
-              if (operableNode.parent && operableNode.parent.type === "FRAME" && operableNode.parent.layoutMode !== "NONE") {
-                operableNode.layoutSizingVertical = "FILL";
+            } else if (node.type === "FRAME" || node.type === "COMPONENT" || node.type === "COMPONENT_SET" || node.type === "INSTANCE" || node.type === "TEXT" || node.type === "RECTANGLE") {
+              const operableNode = node;
+              if (figma.command === "wh") {
+                commandName = "Width to Hug";
+                if (operableNode.type === "TEXT") {
+                  const textNode = operableNode;
+                  const parentIsAutoLayout = textNode.parent && textNode.parent.type === "FRAME" && textNode.parent.layoutMode !== "NONE";
+                  if (parentIsAutoLayout) {
+                    textNode.layoutSizingHorizontal = "HUG";
+                  } else {
+                    if (textNode.fontName !== figma.mixed) {
+                      await figma.loadFontAsync(textNode.fontName);
+                    } else {
+                      const len = textNode.characters.length;
+                      const uniqueFonts = /* @__PURE__ */ new Set();
+                      for (let i = 0; i < len; i++) {
+                        const font = textNode.getRangeFontName(i, i + 1);
+                        const fontKey = JSON.stringify(font);
+                        if (!uniqueFonts.has(fontKey)) {
+                          await figma.loadFontAsync(font);
+                          uniqueFonts.add(fontKey);
+                        }
+                      }
+                    }
+                    textNode.textAutoResize = "WIDTH_AND_HEIGHT";
+                  }
+                } else {
+                  operableNode.layoutSizingHorizontal = "HUG";
+                }
                 modifiedCount++;
-              } else {
-                figma.notify(`"${operableNode.name}" cannot be set to Fill Height as its parent is not an Auto Layout frame.`, { timeout: 3e3 });
-              }
-            } else if (figma.command === "p0") {
-              commandName = "Set All Padding to 0";
-              if ("paddingTop" in operableNode && "paddingBottom" in operableNode && "paddingLeft" in operableNode && "paddingRight" in operableNode) {
-                const paddedNode = operableNode;
-                paddedNode.paddingTop = 0;
-                paddedNode.paddingBottom = 0;
-                paddedNode.paddingLeft = 0;
-                paddedNode.paddingRight = 0;
+              } else if (figma.command === "hh") {
+                commandName = "Height to Hug";
+                if (operableNode.type === "TEXT") {
+                  const textNode = operableNode;
+                  const parentIsAutoLayout = textNode.parent && textNode.parent.type === "FRAME" && textNode.parent.layoutMode !== "NONE";
+                  if (parentIsAutoLayout) {
+                    textNode.layoutSizingVertical = "HUG";
+                  } else {
+                    if (textNode.fontName !== figma.mixed) {
+                      await figma.loadFontAsync(textNode.fontName);
+                    } else {
+                      const len = textNode.characters.length;
+                      const uniqueFonts = /* @__PURE__ */ new Set();
+                      for (let i = 0; i < len; i++) {
+                        const font = textNode.getRangeFontName(i, i + 1);
+                        const fontKey = JSON.stringify(font);
+                        if (!uniqueFonts.has(fontKey)) {
+                          await figma.loadFontAsync(font);
+                          uniqueFonts.add(fontKey);
+                        }
+                      }
+                    }
+                    textNode.textAutoResize = "HEIGHT";
+                  }
+                } else {
+                  operableNode.layoutSizingVertical = "HUG";
+                }
                 modifiedCount++;
-              }
-            } else if (figma.command === "p16") {
-              commandName = "Set All Padding to 16";
-              if ("paddingTop" in operableNode && "paddingBottom" in operableNode && "paddingLeft" in operableNode && "paddingRight" in operableNode) {
-                const paddedNode = operableNode;
-                paddedNode.paddingTop = 16;
-                paddedNode.paddingBottom = 16;
-                paddedNode.paddingLeft = 16;
-                paddedNode.paddingRight = 16;
-                modifiedCount++;
-              }
-            } else if (figma.command === "br8") {
-              commandName = "Set Border Radius to 8px";
-              if ("cornerRadius" in operableNode) {
-                operableNode.cornerRadius = 8;
-                modifiedCount++;
-              }
-            } else if (figma.command === "br0") {
-              commandName = "Set Border Radius to 0px";
-              if ("cornerRadius" in operableNode) {
-                operableNode.cornerRadius = 0;
-                modifiedCount++;
+              } else if (figma.command === "wf") {
+                commandName = "Width to Fill";
+                if (operableNode.parent && operableNode.parent.type === "FRAME" && operableNode.parent.layoutMode !== "NONE") {
+                  operableNode.layoutSizingHorizontal = "FILL";
+                  modifiedCount++;
+                } else {
+                  figma.notify(`"${operableNode.name}" cannot be set to Fill Width as its parent is not an Auto Layout frame.`, { timeout: 3e3 });
+                }
+              } else if (figma.command === "hf") {
+                commandName = "Height to Fill";
+                if (operableNode.parent && operableNode.parent.type === "FRAME" && operableNode.parent.layoutMode !== "NONE") {
+                  operableNode.layoutSizingVertical = "FILL";
+                  modifiedCount++;
+                } else {
+                  figma.notify(`"${operableNode.name}" cannot be set to Fill Height as its parent is not an Auto Layout frame.`, { timeout: 3e3 });
+                }
+              } else if (figma.command === "p0") {
+                commandName = "Set All Padding to 0";
+                if ("paddingTop" in operableNode && "paddingBottom" in operableNode && "paddingLeft" in operableNode && "paddingRight" in operableNode) {
+                  const paddedNode = operableNode;
+                  paddedNode.paddingTop = 0;
+                  paddedNode.paddingBottom = 0;
+                  paddedNode.paddingLeft = 0;
+                  paddedNode.paddingRight = 0;
+                  modifiedCount++;
+                }
+              } else if (figma.command === "p16") {
+                commandName = "Set All Padding to 16";
+                if ("paddingTop" in operableNode && "paddingBottom" in operableNode && "paddingLeft" in operableNode && "paddingRight" in operableNode) {
+                  const paddedNode = operableNode;
+                  paddedNode.paddingTop = 16;
+                  paddedNode.paddingBottom = 16;
+                  paddedNode.paddingLeft = 16;
+                  paddedNode.paddingRight = 16;
+                  modifiedCount++;
+                }
+              } else if (figma.command === "br8") {
+                commandName = "Set Border Radius to 8px";
+                if ("cornerRadius" in operableNode) {
+                  operableNode.cornerRadius = 8;
+                  modifiedCount++;
+                }
+              } else if (figma.command === "br0") {
+                commandName = "Set Border Radius to 0px";
+                if ("cornerRadius" in operableNode) {
+                  operableNode.cornerRadius = 0;
+                  modifiedCount++;
+                }
               }
             }
+          } catch (e) {
+            figma.notify(`Error applying to "${node.name}": ${e.message}`, { error: true, timeout: 3e3 });
           }
-        } catch (e) {
-          figma.notify(`Error applying to "${node.name}": ${e.message}`, { error: true, timeout: 3e3 });
         }
-      }
-      if (modifiedCount > 0 && commandName) {
-        const plural = modifiedCount === 1 ? "" : "s";
-        figma.notify(`Applied "${commandName}" to ${modifiedCount} layer${plural}.`);
-      } else if (S > 0 && commandName !== "" && !commandsRequiringSelection.includes(figma.command)) {
-        figma.notify(`No applicable layers found for "${commandName}".`, { timeout: 3e3 });
-      }
-      figma.closePlugin();
+        if (modifiedCount > 0 && commandName) {
+          const plural = modifiedCount === 1 ? "" : "s";
+          figma.notify(`Applied "${commandName}" to ${modifiedCount} layer${plural}.`);
+        } else if (S > 0 && commandName !== "" && !commandsRequiringSelection.includes(figma.command)) {
+          figma.notify(`No applicable layers found for "${commandName}".`, { timeout: 3e3 });
+        }
+        figma.closePlugin();
+      })().catch((e) => {
+        console.error("Error in async command execution:", e);
+        figma.notify(`An unexpected error occurred: ${e.message}`, { error: true });
+        figma.closePlugin();
+      });
     } else if (figma.command && !["aa", "setPadding", "setHeight", "setWidth", "setBorderRadius", "setStrokeWidth", "setStrokeColour", "setFillColour", "setGap", "s1", "s0", "fill1", "fill0", "gap0", "gap8", "gap16", "wh", "hh", "wf", "hf", "p0", "p16", "br8", "br0"].includes(figma.command)) {
       console.log("Unknown command, closing plugin:", figma.command);
       figma.closePlugin();
