@@ -36,6 +36,14 @@
       "command": "aa"
     },
     {
+      "name": "aa.h - Set Autolayout to Horizontal",
+      "command": "aa.h"
+    },
+    {
+      "name": "aa.v - Set Autolayout to Vertical",
+      "command": "aa.v"
+    },
+    {
       "name": "br.8 - Set Border Radius to 8px",
       "command": "br8"
     },

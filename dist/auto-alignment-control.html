@@ -92,6 +92,8 @@
             <span class="key"><—</span>
             <span class="key">—></span>
             <span class="key">SPACE</span>
+            <span class="key">H</span>
+            <span class="key">V</span>
         </div>
     </div>
     <script>
@@ -214,6 +216,17 @@
                 event.preventDefault();
                 parent.postMessage({ pluginMessage: { type: 'toggle-distribution' } }, '*');
                 return; // State will be updated by message from plugin
+            }
+
+            if (event.key === 'h' || event.key === 'H') {
+                parent.postMessage({ pluginMessage: { type: 'set-layout-direction', direction: 'HORIZONTAL' } }, '*');
+                event.preventDefault();
+                return;
+            }
+            if (event.key === 'v' || event.key === 'V') {
+                parent.postMessage({ pluginMessage: { type: 'set-layout-direction', direction: 'VERTICAL' } }, '*');
+                event.preventDefault();
+                return;
             }
 
             if (isDistributeModeVisual) {

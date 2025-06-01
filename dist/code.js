@@ -573,6 +573,41 @@
           sendCurrentStateToUIForAA();
         }
         break;
+      case "set-layout-direction":
+        if (figma.command === "aa") {
+          const direction = msg.direction;
+          if (direction) {
+            let changedCount = 0;
+            for (const node of selection) {
+              if (isValidAutoLayoutNode(node) && node.children) {
+                const childrenSizing = [];
+                for (const child of node.children) {
+                  if ("layoutSizingHorizontal" in child && "layoutSizingVertical" in child) {
+                    childrenSizing.push({
+                      id: child.id,
+                      h: child.layoutSizingHorizontal,
+                      v: child.layoutSizingVertical
+                    });
+                  }
+                }
+                node.layoutMode = direction;
+                for (const child of node.children) {
+                  const originalSizing = childrenSizing.find((s) => s.id === child.id);
+                  if (originalSizing && "layoutSizingHorizontal" in child && "layoutSizingVertical" in child) {
+                    child.layoutSizingHorizontal = originalSizing.h;
+                    child.layoutSizingVertical = originalSizing.v;
+                  }
+                }
+                changedCount++;
+              }
+            }
+            if (changedCount > 0) {
+              figma.notify(`Layout direction set to ${direction.toLowerCase()} for ${changedCount} layer(s).`);
+            }
+            sendCurrentStateToUIForAA();
+          }
+        }
+        break;
       case "set-stroke":
         let appliedStrokeCount = 0;
         for (const node of selection) {
@@ -822,6 +857,45 @@
       }
       figma.closePlugin();
     }
+  } else if (figma.command === "aa.h" || figma.command === "aa.v") {
+    const selection = figma.currentPage.selection;
+    if (selection.length === 0) {
+      figma.notify("Please select at least one Auto Layout layer.", { error: true });
+      figma.closePlugin();
+    } else {
+      let modifiedCount = 0;
+      const newLayoutMode = figma.command === "aa.h" ? "HORIZONTAL" : "VERTICAL";
+      const commandName = `Set Auto Layout to ${newLayoutMode.toLowerCase()}`;
+      for (const node of selection) {
+        if (isValidAutoLayoutNode(node) && node.children) {
+          const childrenSizing = [];
+          for (const child of node.children) {
+            if ("layoutSizingHorizontal" in child && "layoutSizingVertical" in child) {
+              childrenSizing.push({
+                id: child.id,
+                h: child.layoutSizingHorizontal,
+                v: child.layoutSizingVertical
+              });
+            }
+          }
+          node.layoutMode = newLayoutMode;
+          for (const child of node.children) {
+            const originalSizing = childrenSizing.find((s) => s.id === child.id);
+            if (originalSizing && "layoutSizingHorizontal" in child && "layoutSizingVertical" in child) {
+              child.layoutSizingHorizontal = originalSizing.h;
+              child.layoutSizingVertical = originalSizing.v;
+            }
+          }
+          modifiedCount++;
+        }
+      }
+      if (modifiedCount > 0) {
+        figma.notify(`Applied "${commandName}" to ${modifiedCount} layer${modifiedCount === 1 ? "" : "s"}.`);
+      } else {
+        figma.notify(`No applicable Auto Layout layers found for "${commandName}".`, { timeout: 3e3 });
+      }
+      figma.closePlugin();
+    }
   } else {
     const selection = figma.currentPage.selection;
     let S = selection.length;
@@ -982,7 +1056,7 @@
         figma.notify(`An unexpected error occurred: ${e.message}`, { error: true });
         figma.closePlugin();
       });
-    } else if (figma.command && !["aa", "setPadding", "setHeight", "setWidth", "setBorderRadius", "setStrokeWidth", "setStrokeColour", "setFillColour", "setGap", "s1", "s0", "fill1", "fill0", "gap0", "gap8", "gap16", "wh", "hh", "wf", "hf", "p0", "p16", "br8", "br0"].includes(figma.command)) {
+    } else if (figma.command && !["aa", "setPadding", "setHeight", "setWidth", "setBorderRadius", "setStrokeWidth", "setStrokeColour", "setFillColour", "setGap", "s1", "s0", "fill1", "fill0", "gap0", "gap8", "gap16", "wh", "hh", "wf", "hf", "p0", "p16", "br8", "br0", "aa.h", "aa.v"].includes(figma.command)) {
       console.log("Unknown command, closing plugin:", figma.command);
       figma.closePlugin();
     }
