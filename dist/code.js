@@ -723,7 +723,7 @@
     figma.closePlugin();
   }
   function handleSetAlignmentAA(msg, selection) {
-    if (figma.command !== "aa") return;
+    if (figma.command !== "al..") return;
     const [uiPrimary, uiCounter] = alignmentMap[msg.index];
     for (const node of selection) {
       if (isValidAutoLayoutNode(node)) {
@@ -751,7 +751,7 @@
     sendCurrentStateToUIForAA();
   }
   function handleToggleDistributionAA(selection) {
-    if (figma.command !== "aa") return;
+    if (figma.command !== "al..") return;
     pluginIsDistributeModeActive = !pluginIsDistributeModeActive;
     for (const node of selection) {
       if (isValidAutoLayoutNode(node)) {
@@ -767,12 +767,12 @@
     sendCurrentStateToUIForAA();
   }
   function handleGetInitialVisibilityAA() {
-    if (figma.command === "aa") {
+    if (figma.command === "al..") {
       sendCurrentStateToUIForAA();
     }
   }
   function handleSetLayoutDirectionAA(msg, selection) {
-    if (figma.command !== "aa") return;
+    if (figma.command !== "al..") return;
     const direction = msg.direction;
     if (direction) {
       let changedCount = 0;
@@ -1120,179 +1120,20 @@
     "gap0": (sel) => setGapForSelection(0, sel),
     "gap8": (sel) => setGapForSelection(8, sel),
     "gap16": (sel) => setGapForSelection(16, sel),
-    "aa.h": (sel) => setAutoLayoutDirection("HORIZONTAL", sel),
-    "aa.v": (sel) => setAutoLayoutDirection("VERTICAL", sel)
+    "al.h": (sel) => setAutoLayoutDirection("HORIZONTAL", sel),
+    "al.v": (sel) => setAutoLayoutDirection("VERTICAL", sel)
   };
-  async function handleTestAllCapabilities() {
-    figma.notify("Starting All Capability Tests...", { timeout: 2e3 });
-    console.log("--- Starting All Capability Tests ---");
-    const testNodes = [];
-    let testSucceeded = true;
-    let testsRun = 0;
-    let testsFailed = 0;
-    async function runTest(name, testFn) {
-      testsRun++;
-      figma.notify(`Testing: ${name}...`, { timeout: 1e3 });
-      console.log(`Testing: ${name}...`);
-      try {
-        await testFn();
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        figma.notify(`SUCCESS: ${name}`, { timeout: 1500 });
-        console.log(`SUCCESS: ${name}`);
-      } catch (e) {
-        testSucceeded = false;
-        testsFailed++;
-        figma.notify(`ERROR: ${name} - ${e.message}`, { error: true, timeout: 4e3 });
-        console.error(`ERROR: ${name}`, e);
-      }
-    }
-    await runTest("Create Test Nodes", () => {
-      const page = figma.currentPage;
-      const testFrame2 = figma.createFrame();
-      testFrame2.name = "Test_Frame_Lazer";
-      testFrame2.resize(200, 100);
-      testFrame2.x = page.children.length * 250;
-      page.appendChild(testFrame2);
-      testNodes.push(testFrame2);
-      const testText2 = figma.createText();
-      testText2.name = "Test_Text_Lazer";
-      testText2.characters = "Hello Lazer";
-      testText2.fontSize = 24;
-      testText2.x = testFrame2.x;
-      testText2.y = testFrame2.y + 120;
-      page.appendChild(testText2);
-      testNodes.push(testText2);
-      const testRect2 = figma.createRectangle();
-      testRect2.name = "Test_Rect_Lazer";
-      testRect2.resize(100, 50);
-      testRect2.x = testFrame2.x;
-      testRect2.y = testFrame2.y + 180;
-      page.appendChild(testRect2);
-      testNodes.push(testRect2);
-      const testAutoLayoutFrame2 = figma.createFrame();
-      testAutoLayoutFrame2.name = "Test_AutoLayout_Lazer";
-      testAutoLayoutFrame2.layoutMode = "HORIZONTAL";
-      testAutoLayoutFrame2.itemSpacing = 10;
-      testAutoLayoutFrame2.paddingLeft = testAutoLayoutFrame2.paddingRight = testAutoLayoutFrame2.paddingTop = testAutoLayoutFrame2.paddingBottom = 5;
-      testAutoLayoutFrame2.resize(300, 80);
-      testAutoLayoutFrame2.x = testFrame2.x;
-      testAutoLayoutFrame2.y = testFrame2.y + 250;
-      const childRect1 = figma.createRectangle();
-      childRect1.name = "Child1";
-      childRect1.resize(50, 50);
-      testAutoLayoutFrame2.appendChild(childRect1);
-      const childRect2 = figma.createRectangle();
-      childRect2.name = "Child2";
-      childRect2.resize(50, 50);
-      testAutoLayoutFrame2.appendChild(childRect2);
-      page.appendChild(testAutoLayoutFrame2);
-      testNodes.push(testAutoLayoutFrame2);
-      figma.currentPage.selection = testNodes;
-    });
-    if (testNodes.length < 4) {
-      figma.notify("Failed to create all test nodes. Aborting tests.", { error: true });
-      figma.closePlugin();
-      return;
-    }
-    const [testFrame, testText, testRect, testAutoLayoutFrame] = testNodes;
-    await runTest("Width to Hug (Frame)", async () => handleWidthHug([testFrame]));
-    await runTest("Height to Hug (Frame)", async () => handleHeightHug([testFrame]));
-    testFrame.resize(200, 100);
-    testFrame.layoutSizingHorizontal = "FIXED";
-    testFrame.layoutSizingVertical = "FIXED";
-    const fillTestParent = figma.createFrame();
-    fillTestParent.name = "FillTestParent_Lazer";
-    fillTestParent.layoutMode = "VERTICAL";
-    fillTestParent.appendChild(testFrame);
-    figma.currentPage.appendChild(fillTestParent);
-    testNodes.push(fillTestParent);
-    await runTest("Width to Fill (Frame)", async () => handleWidthFill([testFrame]));
-    await runTest("Height to Fill (Frame)", async () => handleHeightFill([testFrame]));
-    figma.currentPage.appendChild(testFrame);
-    fillTestParent.remove();
-    testNodes.pop();
-    await runTest("Padding to 0 (AutoLayout)", async () => setPaddingForSelection(0, [testAutoLayoutFrame]));
-    await runTest("Padding to 16 (AutoLayout)", async () => setPaddingForSelection(16, [testAutoLayoutFrame]));
-    await runTest("Border Radius to 0 (Rect)", async () => setBorderRadiusForSelection(0, [testRect]));
-    await runTest("Border Radius to 8 (Rect)", async () => setBorderRadiusForSelection(8, [testRect]));
-    await runTest("Stroke to 0 (Rect)", async () => setStrokeWeightForSelection(0, [testRect]));
-    await runTest("Stroke to 1 (Rect)", async () => setStrokeWeightForSelection(1, [testRect]));
-    await runTest("Remove All Fills (Rect)", async () => handleFillRemoveAll([testRect]));
-    await runTest("Add Default Fill (Rect)", async () => handleFillDefault([testRect]));
-    await runTest("Gap to 0 (AutoLayout)", async () => setGapForSelection(0, [testAutoLayoutFrame]));
-    await runTest("Gap to 8 (AutoLayout)", async () => setGapForSelection(8, [testAutoLayoutFrame]));
-    await runTest("Gap to 16 (AutoLayout)", async () => setGapForSelection(16, [testAutoLayoutFrame]));
-    await runTest("AutoLayout to Horizontal", async () => setAutoLayoutDirection("HORIZONTAL", [testAutoLayoutFrame]));
-    await runTest("AutoLayout to Vertical", async () => setAutoLayoutDirection("VERTICAL", [testAutoLayoutFrame]));
-    figma.currentPage.selection = [testAutoLayoutFrame];
-    await runTest("Set Padding (UI Sim - 10)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setPadding", value: "10" }, [testAutoLayoutFrame]));
-    figma.currentPage.selection = [testFrame];
-    await runTest("Set Height (UI Sim - 150)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setHeight", value: "150" }, [testFrame]));
-    await runTest("Set Width (UI Sim - 250)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setWidth", value: "250" }, [testFrame]));
-    await runTest("Set Height (UI Sim - Hug)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setHeight", value: "hug" }, [testFrame]));
-    await runTest("Set Width (UI Sim - Hug)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setWidth", value: "hug" }, [testFrame]));
-    testFrame.resize(200, 100);
-    testFrame.layoutSizingHorizontal = "FIXED";
-    testFrame.layoutSizingVertical = "FIXED";
-    const percentTestParent = figma.createFrame();
-    percentTestParent.name = "PercentTestParent_Lazer";
-    percentTestParent.resize(400, 300);
-    percentTestParent.appendChild(testFrame);
-    figma.currentPage.appendChild(percentTestParent);
-    testNodes.push(percentTestParent);
-    await runTest("Set Height (UI Sim - 50%)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setHeight", value: "50%" }, [testFrame]));
-    await runTest("Set Width (UI Sim - 25% + 10)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setWidth", value: "25% + 10" }, [testFrame]));
-    figma.currentPage.appendChild(testFrame);
-    percentTestParent.remove();
-    testNodes.pop();
-    figma.currentPage.selection = [testRect];
-    await runTest("Set Border Radius (UI Sim - 12)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setBorderRadius", value: "12" }, [testRect]));
-    figma.currentPage.selection = [testRect];
-    await runTest("Set Stroke Width (UI Sim - 3)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setStrokeWidth", value: "3" }, [testRect]));
-    await runTest("Set Stroke Colour (UI Sim - #FF0000)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setStrokeColour", value: "#FF0000" }, [testRect]));
-    figma.currentPage.selection = [testRect];
-    await runTest("Set Fill Colour (UI Sim - #00FF00)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setFillColour", value: "#00FF00" }, [testRect]));
-    figma.currentPage.selection = [testAutoLayoutFrame];
-    await runTest("Set Gap (UI Sim - 20)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setGap", value: "20" }, [testAutoLayoutFrame]));
-    figma.currentPage.selection = [testText];
-    await loadFontsForNodes([testText]);
-    await runTest("Set Text Size (UI Sim - 30)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setTextSize", value: "30" }, [testText]));
-    await runTest("Set Text Letter Spacing (UI Sim - 2px)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setTextLetterSpacing", value: "2px" }, [testText]));
-    await runTest("Set Text Letter Spacing (UI Sim - 5%)", async () => handleSubmitValue({ type: "submit-value", propertyType: "setTextLetterSpacing", value: "5%" }, [testText]));
-    figma.currentPage.selection = [testAutoLayoutFrame];
-    pluginIsDistributeModeActive = false;
-    stashedPrimaryAxisAlignment = "CENTER";
-    stashedCounterAxisAlignment = "CENTER";
-    await runTest("AA: Set Alignment (Top-Left)", async () => handleSetAlignmentAA({ type: "set-alignment", index: 0 }, [testAutoLayoutFrame]));
-    await runTest("AA: Set Alignment (Middle-Center)", async () => handleSetAlignmentAA({ type: "set-alignment", index: 4 }, [testAutoLayoutFrame]));
-    await runTest("AA: Toggle Distribution (ON)", async () => handleToggleDistributionAA([testAutoLayoutFrame]));
-    await runTest("AA: Set Alignment (Center-Right while Distribute)", async () => handleSetAlignmentAA({ type: "set-alignment", index: 5 }, [testAutoLayoutFrame]));
-    await runTest("AA: Toggle Distribution (OFF)", async () => handleToggleDistributionAA([testAutoLayoutFrame]));
-    await runTest("AA: Set Layout Direction (VERTICAL)", async () => handleSetLayoutDirectionAA({ type: "set-layout-direction", direction: "VERTICAL" }, [testAutoLayoutFrame]));
-    await runTest("AA: Set Layout Direction (HORIZONTAL)", async () => handleSetLayoutDirectionAA({ type: "set-layout-direction", direction: "HORIZONTAL" }, [testAutoLayoutFrame]));
-    await runTest("AA: Set Stroke (UI Sim - 2)", async () => handleSetStrokeFromUIAA({ type: "set-stroke", value: 2 }, [testAutoLayoutFrame]));
-    if (testSucceeded) {
-      figma.notify(`All ${testsRun} capability tests passed!`, { timeout: 5e3 });
-      console.log(`--- All ${testsRun} capability tests passed! ---`);
-    } else {
-      figma.notify(`${testsFailed} out of ${testsRun} tests FAILED. Check console for details.`, { error: true, timeout: 8e3 });
-      console.error(`--- ${testsFailed} out of ${testsRun} tests FAILED. ---`);
-    }
-    figma.closePlugin();
-  }
-  if (figma.command === "aa") {
+  if (figma.command === "al..") {
     figma.showUI(__html__, { width: 180, height: 180, themeColors: true });
     sendCurrentStateToUIForAA();
     figma.on("selectionchange", () => {
-      if (figma.command === "aa") {
+      if (figma.command === "al..") {
         sendCurrentStateToUIForAA();
       }
     });
   } else if (commandHandlers[figma.command]) {
     const selection = figma.currentPage.selection;
     commandHandlers[figma.command](selection);
-  } else if (figma.command === "internalTestAllCapabilities") {
-    handleTestAllCapabilities();
   } else if (figma.command === "setPadding") {
     const selection = figma.currentPage.selection;
     if (selection.length === 0) {
@@ -1437,7 +1278,7 @@
         figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setTextSize", title: "Set Font Size (e.g., 16)", currentValue: commonFontSize });
       }
     }
-  } else if (figma.command === "t.ls") {
+  } else if (figma.command === "ls..") {
     const selection = figma.currentPage.selection;
     if (selection.length === 0) {
       figma.notify("Please select at least one text layer.", { error: true });

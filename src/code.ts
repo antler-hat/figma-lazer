@@ -693,7 +693,7 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
 
 // --- START UI MESSAGE SUB-HANDLERS for Auto-Alignment (AA) ---
 function handleSetAlignmentAA(msg: any, selection: readonly SceneNode[]) {
-  if (figma.command !== 'aa') return;
+  if (figma.command !== 'al..') return;
   const [uiPrimary, uiCounter] = alignmentMap[msg.index];
   for (const node of selection) {
     if (isValidAutoLayoutNode(node)) {
@@ -722,7 +722,7 @@ function handleSetAlignmentAA(msg: any, selection: readonly SceneNode[]) {
 }
 
 function handleToggleDistributionAA(selection: readonly SceneNode[]) {
-  if (figma.command !== 'aa') return;
+  if (figma.command !== 'al..') return;
   pluginIsDistributeModeActive = !pluginIsDistributeModeActive;
   for (const node of selection) {
     if (isValidAutoLayoutNode(node)) {
@@ -739,13 +739,13 @@ function handleToggleDistributionAA(selection: readonly SceneNode[]) {
 }
 
 function handleGetInitialVisibilityAA() {
-  if (figma.command === 'aa') {
+  if (figma.command === 'al..') {
     sendCurrentStateToUIForAA();
   }
 }
 
 function handleSetLayoutDirectionAA(msg: any, selection: readonly SceneNode[]) {
-  if (figma.command !== 'aa') return;
+  if (figma.command !== 'al..') return;
   const direction = msg.direction as 'HORIZONTAL' | 'VERTICAL';
   if (direction) {
     let changedCount = 0;
@@ -1125,17 +1125,17 @@ const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Pro
   'gap0': (sel) => setGapForSelection(0, sel),
   'gap8': (sel) => setGapForSelection(8, sel),
   'gap16': (sel) => setGapForSelection(16, sel),
-  'aa.h': (sel) => setAutoLayoutDirection('HORIZONTAL', sel),
-  'aa.v': (sel) => setAutoLayoutDirection('VERTICAL', sel),
+  'al.h': (sel) => setAutoLayoutDirection('HORIZONTAL', sel),
+  'al.v': (sel) => setAutoLayoutDirection('VERTICAL', sel),
 };
 
 // --- END NEW COMMAND HANDLERS & DISPATCHER ---
 
-if (figma.command === 'aa') {
+if (figma.command === 'al..') {
   figma.showUI(__html__, { width: 180, height: 180, themeColors: true });
   sendCurrentStateToUIForAA(); // Initial state for AA UI
   figma.on('selectionchange', () => {
-    if (figma.command === 'aa') { // Only if AA is the active command context
+    if (figma.command === 'al..') { // Only if AA is the active command context
         sendCurrentStateToUIForAA();
     }
   });
