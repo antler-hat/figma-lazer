@@ -5,6 +5,16 @@ console.log('Figma command:', figma.command);
 
 import inputDialogHtmlContent from './ui/input-dialog.html';
 
+// --- START TYPE ALIASES ---
+type ApplicableNode = FrameNode | ComponentNode | ComponentSetNode | InstanceNode | TextNode | RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode;
+type SizableNode = FrameNode | ComponentNode | ComponentSetNode | InstanceNode | TextNode | RectangleNode; // Nodes that have layoutSizingHorizontal/Vertical
+type StrokableNode = FrameNode | ComponentNode | ComponentSetNode | InstanceNode | TextNode | RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode;
+type FillableNode = FrameNode | ComponentNode | ComponentSetNode | InstanceNode | TextNode | RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode; // Simplified, most visual nodes can have fills
+type PaddingApplicableNode = FrameNode | ComponentNode | InstanceNode | ComponentSetNode;
+type CornerRadiusApplicableNode = FrameNode | RectangleNode | ComponentNode | InstanceNode | ComponentSetNode; // Common nodes with cornerRadius
+type AutoLayoutNode = FrameNode | ComponentNode | InstanceNode | ComponentSetNode; // Nodes that can be Auto Layout frames
+// --- END TYPE ALIASES ---
+
 // Helper function to parse color string (hex or name) to Figma RGB
 
 const colorNameToHex: { [key: string]: string } = {
@@ -77,7 +87,7 @@ function parseColor(colorString: string): RGB | null {
 }
 
 // Helper function to check if a node is a valid Auto Layout frame
-function isValidAutoLayoutNode(node: SceneNode): node is FrameNode | ComponentNode | InstanceNode | ComponentSetNode {
+function isValidAutoLayoutNode(node: SceneNode): node is AutoLayoutNode {
   return (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET') && node.layoutMode !== 'NONE';
 }
 
@@ -125,12 +135,12 @@ function getCommonPropertyValue(
  */
 function getCommonPaddingValue(nodes: readonly SceneNode[]): number | null {
   const applicableNodes = nodes.filter(
-    node =>
+    (node): node is PaddingApplicableNode => // Use type guard with alias
       'paddingLeft' in node &&
       'paddingRight' in node &&
       'paddingTop' in node &&
       'paddingBottom' in node
-  ) as (FrameNode | ComponentNode | InstanceNode | ComponentSetNode)[];
+  ); // No need for 'as' assertion here due to type guard
 
   if (applicableNodes.length === 0) {
     return null;
@@ -395,8 +405,406 @@ function getIndexFromAlignment(primary: FrameNode['primaryAxisAlignItems'], coun
 
 // Plugin state for 'aa' command
 let pluginIsDistributeModeActive = false;
-let stashedPrimaryAxisAlignment: FrameNode['primaryAxisAlignItems'] = 'CENTER';
-let stashedCounterAxisAlignment: FrameNode['counterAxisAlignItems'] = 'CENTER';
+let stashedPrimaryAxisAlignment: AutoLayoutNode['primaryAxisAlignItems'] = 'CENTER'; // Use AutoLayoutNode
+let stashedCounterAxisAlignment: AutoLayoutNode['counterAxisAlignItems'] = 'CENTER'; // Use AutoLayoutNode
+
+// --- START UI MESSAGE SUB-HANDLER for submit-value ---
+async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
+  let modifiedCount = 0;
+  const value = msg.value;
+  const propertyType = msg.propertyType;
+  let notifyMessage = '';
+
+  for (const node of selection) {
+    try {
+      switch (propertyType) {
+        case 'setPadding': // Padding
+          if ('paddingLeft' in node && 'paddingRight' in node && 'paddingTop' in node && 'paddingBottom' in node) {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num >= 0) { // Added num >= 0 check from previous plan
+              (node as PaddingApplicableNode).paddingLeft = num;
+              (node as PaddingApplicableNode).paddingRight = num;
+              (node as PaddingApplicableNode).paddingTop = num;
+              (node as PaddingApplicableNode).paddingBottom = num;
+              modifiedCount++;
+              notifyMessage = `Padding set to ${num}`;
+            } else {
+              figma.notify("Invalid padding value.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+        case 'setHeight': // Height
+          let handledHeightByHugFill = false;
+          if (typeof value === 'string') {
+            const lowerValue = value.toLowerCase();
+            if (lowerValue === 'hug') {
+              if (node.type === 'TEXT') {
+                const textNode = node as TextNode;
+                const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as AutoLayoutNode).layoutMode !== 'NONE';
+                if (parentIsAutoLayout && 'layoutSizingVertical' in textNode) {
+                  textNode.layoutSizingVertical = 'HUG';
+                } else {
+                  await loadFontsForNodes([textNode]);
+                  textNode.textAutoResize = 'HEIGHT';
+                }
+                modifiedCount++;
+                notifyMessage = `Height set to Hug Contents`;
+                handledHeightByHugFill = true;
+              } else if ('layoutSizingVertical' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET')) {
+                (node as SizableNode).layoutSizingVertical = 'HUG'; // Use SizableNode
+                modifiedCount++;
+                notifyMessage = `Height set to Hug Contents`;
+                handledHeightByHugFill = true;
+              }
+            } else if (lowerValue === 'fill') {
+              if ('layoutSizingVertical' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET' || node.type === 'TEXT')) {
+                const operableNode = node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode;
+                if (operableNode.parent && operableNode.parent.type === 'FRAME' && (operableNode.parent as FrameNode).layoutMode !== 'NONE') {
+                  operableNode.layoutSizingVertical = 'FILL';
+                  modifiedCount++;
+                  notifyMessage = `Height set to Fill Container`;
+                  handledHeightByHugFill = true;
+                } else {
+                  figma.notify(`"${operableNode.name}" cannot be set to Fill Height as its parent is not an Auto Layout frame.`, { error: true, timeout: 3000 });
+                  handledHeightByHugFill = true; // Mark as handled to prevent falling into numeric parsing
+                }
+              }
+            }
+          }
+
+          if (!handledHeightByHugFill && 'resize' in node && 'height' in node) {
+            let finalHeight: number | null = null;
+            if (typeof value === 'string' && value.includes('%')) {
+              finalHeight = calculateSizeFromPercentageString(node, 'height', value);
+            } else {
+              const num = parseFloat(value);
+              if (!isNaN(num) && num >= 0) {
+                finalHeight = num;
+              }
+            }
+
+            if (finalHeight !== null && finalHeight >= 0) {
+              if ('layoutSizingVertical' in node) (node as SizableNode).layoutSizingVertical = 'FIXED'; // Use SizableNode
+              (node as SceneNode & { resize: (width: number, height: number) => void }).resize(node.width, finalHeight);
+              modifiedCount++;
+              notifyMessage = `Height set to ${parseFloat(finalHeight.toFixed(2))}`;
+            } else { // finalHeight is null or negative
+              // This means value was not 'hug', 'fill', a valid '%', or a valid number.
+              figma.notify("Invalid height value.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          } else if (!handledHeightByHugFill && !('resize' in node && 'height' in node)) {
+            if (typeof value === 'string' && (value.toLowerCase() === 'hug' || value.toLowerCase() === 'fill')) {
+                figma.notify(`"${value}" is not applicable to "${node.name}".`, { error: true, timeout: 3000 });
+            }
+          }
+          break;
+        case 'setWidth': // Width
+          let handledWidthByHugFill = false;
+          if (typeof value === 'string') {
+            const lowerValue = value.toLowerCase();
+            if (lowerValue === 'hug') {
+              if (node.type === 'TEXT') {
+                const textNode = node as TextNode;
+                const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as AutoLayoutNode).layoutMode !== 'NONE';
+                if (parentIsAutoLayout && 'layoutSizingHorizontal' in textNode) {
+                  textNode.layoutSizingHorizontal = 'HUG';
+                } else {
+                  await loadFontsForNodes([textNode]);
+                  textNode.textAutoResize = 'WIDTH_AND_HEIGHT';
+                }
+                modifiedCount++;
+                notifyMessage = `Width set to Hug Contents`;
+                handledWidthByHugFill = true;
+              } else if ('layoutSizingHorizontal' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET')) {
+                (node as SizableNode).layoutSizingHorizontal = 'HUG'; // Use SizableNode
+                modifiedCount++;
+                notifyMessage = `Width set to Hug Contents`;
+                handledWidthByHugFill = true;
+              }
+            } else if (lowerValue === 'fill') {
+              if ('layoutSizingHorizontal' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET' || node.type === 'TEXT')) {
+                const operableNode = node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode;
+                if (operableNode.parent && operableNode.parent.type === 'FRAME' && (operableNode.parent as FrameNode).layoutMode !== 'NONE') {
+                  operableNode.layoutSizingHorizontal = 'FILL';
+                  modifiedCount++;
+                  notifyMessage = `Width set to Fill Container`;
+                  handledWidthByHugFill = true;
+                } else {
+                  figma.notify(`"${operableNode.name}" cannot be set to Fill Width as its parent is not an Auto Layout frame.`, { error: true, timeout: 3000 });
+                  handledWidthByHugFill = true; // Mark as handled
+                }
+              }
+            }
+          }
+
+          if (!handledWidthByHugFill && 'resize' in node && 'width' in node) {
+            let finalWidth: number | null = null;
+            if (typeof value === 'string' && value.includes('%')) {
+              finalWidth = calculateSizeFromPercentageString(node, 'width', value);
+            } else {
+              const num = parseFloat(value);
+              if (!isNaN(num) && num >= 0) {
+                finalWidth = num;
+              }
+            }
+
+            if (finalWidth !== null && finalWidth >= 0) {
+              if ('layoutSizingHorizontal' in node) (node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode).layoutSizingHorizontal = 'FIXED';
+              (node as SceneNode & { resize: (width: number, height: number) => void }).resize(finalWidth, node.height);
+              modifiedCount++;
+              notifyMessage = `Width set to ${parseFloat(finalWidth.toFixed(2))}`;
+            } else { // finalWidth is null or negative
+              figma.notify("Invalid width value.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          } else if (!handledWidthByHugFill && !('resize' in node && 'width' in node)) {
+             if (typeof value === 'string' && (value.toLowerCase() === 'hug' || value.toLowerCase() === 'fill')) {
+                figma.notify(`"${value}" is not applicable to "${node.name}".`, { error: true, timeout: 3000 });
+            }
+          }
+          break;
+        case 'setBorderRadius': // Border Radius
+          if ('cornerRadius' in node) {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num >= 0) {
+              (node as CornerRadiusApplicableNode).cornerRadius = num; // Use CornerRadiusApplicableNode
+              modifiedCount++;
+              notifyMessage = `Border Radius set to ${num}`;
+            } else {
+              figma.notify("Invalid border radius value.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+        case 'setStrokeWidth': // Stroke Width
+          if ('strokeWeight' in node) {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num >= 0) {
+              const localStrokableNode = node as StrokableNode; // Use StrokableNode
+              if (num > 0 && localStrokableNode.strokes.length === 0) {
+                 localStrokableNode.strokes = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }]; // Add default black stroke if none
+              }
+              localStrokableNode.strokeWeight = num;
+              modifiedCount++;
+              notifyMessage = `Stroke Width set to ${num}`;
+            } else {
+              figma.notify("Invalid stroke width value.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+        case 'setStrokeColour': // Stroke Color
+          if ('strokes' in node) {
+            const color = parseColor(value);
+            if (color) {
+              const localStrokableNode = node as StrokableNode; // Use StrokableNode
+              localStrokableNode.strokes = [{ type: 'SOLID', color: color }];
+              modifiedCount++;
+              notifyMessage = `Stroke Color set`;
+            } else {
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+        case 'setFillColour': // Fill Color
+          if ('fills' in node) {
+            const color = parseColor(value);
+            if (color) {
+              const localFillableNode = node as FillableNode; // Use FillableNode
+               localFillableNode.fills = [{ type: 'SOLID', color: color }];
+              modifiedCount++;
+              notifyMessage = `Fill Color set`;
+            } else {
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+        case 'setGap': // Gap
+          if (isValidAutoLayoutNode(node)) {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num >= 0) {
+              node.itemSpacing = num;
+              modifiedCount++;
+              notifyMessage = `Gap set to ${num}`;
+            } else {
+              figma.notify("Invalid gap value.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+        case 'setTextSize': // Font Size
+          if (node.type === 'TEXT') {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num > 0) {
+              await loadFontsForNodes([node as TextNode]); 
+              (node as TextNode).fontSize = num;
+              modifiedCount++;
+              notifyMessage = `Font Size set to ${num}`;
+            } else {
+              figma.notify("Invalid font size value. Must be a positive number.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+        case 'setTextLetterSpacing': // Letter Spacing
+          if (node.type === 'TEXT') {
+            const strValue = String(value).trim().toLowerCase();
+            const match = strValue.match(/^(\-?\d+(?:\.\d+)?)(px|%)?$/);
+            if (match) {
+              const num = parseFloat(match[1]);
+              const unit = match[2] === '%' ? 'PERCENT' : 'PIXELS';
+              await loadFontsForNodes([node as TextNode]); 
+              (node as TextNode).letterSpacing = { value: num, unit: unit as ('PIXELS' | 'PERCENT') };
+              modifiedCount++;
+              notifyMessage = `Letter Spacing set to ${num}${unit === 'PIXELS' ? 'px' : '%'}`;
+            } else {
+              figma.notify("Invalid letter spacing. Use e.g., '2px' or '5%'.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+      }
+    } catch (e) {
+      console.error(`Error applying ${propertyType}:`, e);
+      figma.notify(`Error applying property: ${(e as Error).message}`, { error: true });
+    }
+  }
+
+  if (modifiedCount > 0) {
+    figma.notify(`${notifyMessage} for ${modifiedCount} layer(s).`);
+  } else if (selection.length > 0) {
+    figma.notify(`No applicable layers found for this operation.`, { timeout: 3000 });
+  }
+  figma.closePlugin();
+}
+// --- END UI MESSAGE SUB-HANDLER for submit-value ---
+
+// --- START UI MESSAGE SUB-HANDLERS for Auto-Alignment (AA) ---
+function handleSetAlignmentAA(msg: any, selection: readonly SceneNode[]) {
+  if (figma.command !== 'aa') return;
+  const [uiPrimary, uiCounter] = alignmentMap[msg.index];
+  for (const node of selection) {
+    if (isValidAutoLayoutNode(node)) {
+      let finalPrimaryAlign: AutoLayoutNode['primaryAxisAlignItems'];
+      let finalCounterAlign: AutoLayoutNode['counterAxisAlignItems'];
+      if (pluginIsDistributeModeActive) {
+        finalPrimaryAlign = 'SPACE_BETWEEN';
+        finalCounterAlign = uiCounter; 
+        stashedCounterAxisAlignment = finalCounterAlign;
+      } else {
+        if (node.layoutMode === 'VERTICAL') {
+          finalPrimaryAlign = uiCounter;
+          finalCounterAlign = uiPrimary;
+        } else {
+          finalPrimaryAlign = uiPrimary;
+          finalCounterAlign = uiCounter;
+        }
+        stashedPrimaryAxisAlignment = finalPrimaryAlign;
+        stashedCounterAxisAlignment = finalCounterAlign;
+      }
+      node.primaryAxisAlignItems = finalPrimaryAlign;
+      node.counterAxisAlignItems = finalCounterAlign;
+    }
+  }
+  sendCurrentStateToUIForAA();
+}
+
+function handleToggleDistributionAA(selection: readonly SceneNode[]) {
+  if (figma.command !== 'aa') return;
+  pluginIsDistributeModeActive = !pluginIsDistributeModeActive;
+  for (const node of selection) {
+    if (isValidAutoLayoutNode(node)) {
+      if (pluginIsDistributeModeActive) {
+        node.primaryAxisAlignItems = 'SPACE_BETWEEN';
+        node.counterAxisAlignItems = stashedCounterAxisAlignment;
+      } else {
+        node.primaryAxisAlignItems = stashedPrimaryAxisAlignment;
+        node.counterAxisAlignItems = stashedCounterAxisAlignment;
+      }
+    }
+  }
+  sendCurrentStateToUIForAA();
+}
+
+function handleGetInitialVisibilityAA() {
+  if (figma.command === 'aa') {
+    sendCurrentStateToUIForAA();
+  }
+}
+
+function handleSetLayoutDirectionAA(msg: any, selection: readonly SceneNode[]) {
+  if (figma.command !== 'aa') return;
+  const direction = msg.direction as 'HORIZONTAL' | 'VERTICAL';
+  if (direction) {
+    let changedCount = 0;
+    for (const node of selection) {
+      if (isValidAutoLayoutNode(node) && node.children) {
+        const childrenSizing: { id: string; h: 'FIXED' | 'HUG' | 'FILL'; v: 'FIXED' | 'HUG' | 'FILL' }[] = [];
+        for (const child of node.children) {
+          if ('layoutSizingHorizontal' in child && 'layoutSizingVertical' in child) {
+            childrenSizing.push({
+              id: child.id,
+              h: (child as SizableNode).layoutSizingHorizontal,
+              v: (child as SizableNode).layoutSizingVertical
+            });
+          }
+        }
+        node.layoutMode = direction;
+        for (const child of node.children) {
+          const originalSizing = childrenSizing.find(s => s.id === child.id);
+          if (originalSizing && 'layoutSizingHorizontal' in child && 'layoutSizingVertical' in child) {
+            (child as SizableNode).layoutSizingHorizontal = originalSizing.h;
+            (child as SizableNode).layoutSizingVertical = originalSizing.v;
+          }
+        }
+        changedCount++;
+      }
+    }
+    if (changedCount > 0) {
+      figma.notify(`Layout direction set to ${direction.toLowerCase()} for ${changedCount} layer(s).`);
+    }
+    sendCurrentStateToUIForAA();
+  }
+}
+
+function handleSetStrokeFromUIAA(msg: any, selection: readonly SceneNode[]) {
+  // This function is called from the AA UI, so no figma.command === 'aa' check needed here
+  // if it's only ever called from there. If it could be called from elsewhere, the check might be useful.
+  let appliedStrokeCount = 0;
+  for (const node of selection) {
+    if ('strokes' in node && 'strokeWeight' in node) {
+      const strokeWeight = msg.value;
+      const localStrokableNode = node as StrokableNode;
+      if (strokeWeight > 0) {
+        if (localStrokableNode.strokes.length === 0) {
+          localStrokableNode.strokes = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }];
+        }
+        localStrokableNode.strokeWeight = strokeWeight;
+      } else {
+        localStrokableNode.strokeWeight = 0;
+      }
+      appliedStrokeCount++;
+    }
+  }
+  if (appliedStrokeCount > 0) {
+    figma.notify(`Stroke set to ${msg.value} for ${appliedStrokeCount} layer(s).`);
+  }
+  // No figma.closePlugin() here, as this message comes from a persistent UI (AA)
+}
+// --- END UI MESSAGE SUB-HANDLERS for Auto-Alignment (AA) ---
+
 
 // Centralized UI message handler
 figma.ui.onmessage = async msg => { // Made async
@@ -406,412 +814,25 @@ figma.ui.onmessage = async msg => { // Made async
 
   switch (msg.type) {
     case 'submit-value':
-      let modifiedCount = 0;
-      const value = msg.value;
-      const propertyType = msg.propertyType;
-      let notifyMessage = '';
-
-      for (const node of selection) {
-        try {
-          switch (propertyType) {
-            case 'setPadding': // Padding
-              if ('paddingLeft' in node && 'paddingRight' in node && 'paddingTop' in node && 'paddingBottom' in node) {
-                const num = parseFloat(value);
-                if (!isNaN(num)) {
-                  (node as FrameNode).paddingLeft = num;
-                  (node as FrameNode).paddingRight = num;
-                  (node as FrameNode).paddingTop = num;
-                  (node as FrameNode).paddingBottom = num;
-                  modifiedCount++;
-                  notifyMessage = `Padding set to ${num}`;
-                } else {
-                  figma.notify("Invalid padding value.", { error: true });
-                  figma.closePlugin();
-                  return;
-                }
-              }
-              break;
-            case 'setHeight': // Height
-              let handledHeightByHugFill = false;
-              if (typeof value === 'string') {
-                const lowerValue = value.toLowerCase();
-                if (lowerValue === 'hug') {
-                  if (node.type === 'TEXT') {
-                    const textNode = node as TextNode;
-                    const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as FrameNode).layoutMode !== 'NONE';
-                    if (parentIsAutoLayout && 'layoutSizingVertical' in textNode) {
-                      textNode.layoutSizingVertical = 'HUG';
-                    } else {
-                      await loadFontsForNodes([textNode]);
-                      textNode.textAutoResize = 'HEIGHT';
-                    }
-                    modifiedCount++;
-                    notifyMessage = `Height set to Hug Contents`;
-                    handledHeightByHugFill = true;
-                  } else if ('layoutSizingVertical' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET')) {
-                    (node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode).layoutSizingVertical = 'HUG';
-                    modifiedCount++;
-                    notifyMessage = `Height set to Hug Contents`;
-                    handledHeightByHugFill = true;
-                  }
-                } else if (lowerValue === 'fill') {
-                  if ('layoutSizingVertical' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET' || node.type === 'TEXT')) {
-                    const operableNode = node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode;
-                    if (operableNode.parent && operableNode.parent.type === 'FRAME' && (operableNode.parent as FrameNode).layoutMode !== 'NONE') {
-                      operableNode.layoutSizingVertical = 'FILL';
-                      modifiedCount++;
-                      notifyMessage = `Height set to Fill Container`;
-                      handledHeightByHugFill = true;
-                    } else {
-                      figma.notify(`"${operableNode.name}" cannot be set to Fill Height as its parent is not an Auto Layout frame.`, { error: true, timeout: 3000 });
-                      handledHeightByHugFill = true; // Mark as handled to prevent falling into numeric parsing
-                    }
-                  }
-                }
-              }
-
-              if (!handledHeightByHugFill && 'resize' in node && 'height' in node) {
-                let finalHeight: number | null = null;
-                if (typeof value === 'string' && value.includes('%')) {
-                  finalHeight = calculateSizeFromPercentageString(node, 'height', value);
-                } else {
-                  const num = parseFloat(value);
-                  if (!isNaN(num) && num >= 0) {
-                    finalHeight = num;
-                  }
-                }
-
-                if (finalHeight !== null && finalHeight >= 0) {
-                  if ('layoutSizingVertical' in node) (node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode).layoutSizingVertical = 'FIXED';
-                  (node as SceneNode & { resize: (width: number, height: number) => void }).resize(node.width, finalHeight);
-                  modifiedCount++;
-                  notifyMessage = `Height set to ${parseFloat(finalHeight.toFixed(2))}`;
-                } else { // finalHeight is null or negative
-                  // This means value was not 'hug', 'fill', a valid '%', or a valid number.
-                  figma.notify("Invalid height value.", { error: true });
-                  figma.closePlugin();
-                  return;
-                }
-              } else if (!handledHeightByHugFill && !('resize' in node && 'height' in node)) {
-                // If not handled by hug/fill and node doesn't have resize/height (e.g. Group), but user typed a number.
-                // This case is unlikely if the command is 'setHeight' as it's filtered before showing UI.
-                // However, if "hug" or "fill" was typed for an inapplicable node type that didn't get caught by specific checks.
-                if (typeof value === 'string' && (value.toLowerCase() === 'hug' || value.toLowerCase() === 'fill')) {
-                    figma.notify(`"${value}" is not applicable to "${node.name}".`, { error: true, timeout: 3000 });
-                }
-              }
-              break;
-            case 'setWidth': // Width
-              let handledWidthByHugFill = false;
-              if (typeof value === 'string') {
-                const lowerValue = value.toLowerCase();
-                if (lowerValue === 'hug') {
-                  if (node.type === 'TEXT') {
-                    const textNode = node as TextNode;
-                    const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as FrameNode).layoutMode !== 'NONE';
-                    if (parentIsAutoLayout && 'layoutSizingHorizontal' in textNode) {
-                      textNode.layoutSizingHorizontal = 'HUG';
-                    } else {
-                      await loadFontsForNodes([textNode]);
-                      textNode.textAutoResize = 'WIDTH_AND_HEIGHT';
-                    }
-                    modifiedCount++;
-                    notifyMessage = `Width set to Hug Contents`;
-                    handledWidthByHugFill = true;
-                  } else if ('layoutSizingHorizontal' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET')) {
-                    (node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode).layoutSizingHorizontal = 'HUG';
-                    modifiedCount++;
-                    notifyMessage = `Width set to Hug Contents`;
-                    handledWidthByHugFill = true;
-                  }
-                } else if (lowerValue === 'fill') {
-                  if ('layoutSizingHorizontal' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET' || node.type === 'TEXT')) {
-                    const operableNode = node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode;
-                    if (operableNode.parent && operableNode.parent.type === 'FRAME' && (operableNode.parent as FrameNode).layoutMode !== 'NONE') {
-                      operableNode.layoutSizingHorizontal = 'FILL';
-                      modifiedCount++;
-                      notifyMessage = `Width set to Fill Container`;
-                      handledWidthByHugFill = true;
-                    } else {
-                      figma.notify(`"${operableNode.name}" cannot be set to Fill Width as its parent is not an Auto Layout frame.`, { error: true, timeout: 3000 });
-                      handledWidthByHugFill = true; // Mark as handled
-                    }
-                  }
-                }
-              }
-
-              if (!handledWidthByHugFill && 'resize' in node && 'width' in node) {
-                let finalWidth: number | null = null;
-                if (typeof value === 'string' && value.includes('%')) {
-                  finalWidth = calculateSizeFromPercentageString(node, 'width', value);
-                } else {
-                  const num = parseFloat(value);
-                  if (!isNaN(num) && num >= 0) {
-                    finalWidth = num;
-                  }
-                }
-
-                if (finalWidth !== null && finalWidth >= 0) {
-                  if ('layoutSizingHorizontal' in node) (node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode).layoutSizingHorizontal = 'FIXED';
-                  (node as SceneNode & { resize: (width: number, height: number) => void }).resize(finalWidth, node.height);
-                  modifiedCount++;
-                  notifyMessage = `Width set to ${parseFloat(finalWidth.toFixed(2))}`;
-                } else { // finalWidth is null or negative
-                  figma.notify("Invalid width value.", { error: true });
-                  figma.closePlugin();
-                  return;
-                }
-              } else if (!handledWidthByHugFill && !('resize' in node && 'width' in node)) {
-                 if (typeof value === 'string' && (value.toLowerCase() === 'hug' || value.toLowerCase() === 'fill')) {
-                    figma.notify(`"${value}" is not applicable to "${node.name}".`, { error: true, timeout: 3000 });
-                }
-              }
-              break;
-            case 'setBorderRadius': // Border Radius
-              if ('cornerRadius' in node) {
-                const num = parseFloat(value);
-                if (!isNaN(num) && num >= 0) {
-                  (node as FrameNode | RectangleNode).cornerRadius = num;
-                  modifiedCount++;
-                  notifyMessage = `Border Radius set to ${num}`;
-                } else {
-                  figma.notify("Invalid border radius value.", { error: true });
-                  figma.closePlugin();
-                  return;
-                }
-              }
-              break;
-            case 'setStrokeWidth': // Stroke Width
-              if ('strokeWeight' in node) {
-                const num = parseFloat(value);
-                if (!isNaN(num) && num >= 0) {
-                  const strokableNode = node as FrameNode | RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode | TextNode | ComponentNode | InstanceNode | ComponentSetNode;
-                  if (num > 0 && strokableNode.strokes.length === 0) {
-                     strokableNode.strokes = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }]; // Add default black stroke if none
-                  }
-                  strokableNode.strokeWeight = num;
-                  modifiedCount++;
-                  notifyMessage = `Stroke Width set to ${num}`;
-                } else {
-                  figma.notify("Invalid stroke width value.", { error: true });
-                  figma.closePlugin();
-                  return;
-                }
-              }
-              break;
-            case 'setStrokeColour': // Stroke Color
-              if ('strokes' in node) {
-                const color = parseColor(value);
-                if (color) {
-                  const strokableNode = node as FrameNode | RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode | TextNode | ComponentNode | InstanceNode | ComponentSetNode;
-                  // Replace first stroke or add new if none. For simplicity, doesn't handle figma.mixed or multiple strokes.
-                  strokableNode.strokes = [{ type: 'SOLID', color: color }];
-                  modifiedCount++;
-                  notifyMessage = `Stroke Color set`;
-                } else {
-                  // parseColor already notifies for invalid format
-                  figma.closePlugin();
-                  return;
-                }
-              }
-              break;
-            case 'setFillColour': // Fill Color
-              if ('fills' in node) {
-                const color = parseColor(value);
-                if (color) {
-                  const fillableNode = node as SceneNode & { fills: readonly Paint[] | typeof figma.mixed };
-                   fillableNode.fills = [{ type: 'SOLID', color: color }];
-                  modifiedCount++;
-                  notifyMessage = `Fill Color set`;
-                } else {
-                  // parseColor already notifies
-                  figma.closePlugin();
-                  return;
-                }
-              }
-              break;
-            case 'setGap': // Gap
-              if (isValidAutoLayoutNode(node)) {
-                const num = parseFloat(value);
-                if (!isNaN(num) && num >= 0) {
-                  node.itemSpacing = num;
-                  modifiedCount++;
-                  notifyMessage = `Gap set to ${num}`;
-                } else {
-                  figma.notify("Invalid gap value.", { error: true });
-                  figma.closePlugin();
-                  return;
-                }
-              }
-              break;
-            case 'setTextSize': // Font Size
-              if (node.type === 'TEXT') {
-                const num = parseFloat(value);
-                if (!isNaN(num) && num > 0) {
-                  await loadFontsForNodes([node as TextNode]); // Ensure font is loaded
-                  (node as TextNode).fontSize = num;
-                  modifiedCount++;
-                  notifyMessage = `Font Size set to ${num}`;
-                } else {
-                  figma.notify("Invalid font size value. Must be a positive number.", { error: true });
-                  figma.closePlugin();
-                  return;
-                }
-              }
-              break;
-            case 'setTextLetterSpacing': // Letter Spacing
-              if (node.type === 'TEXT') {
-                const strValue = String(value).trim().toLowerCase();
-                const match = strValue.match(/^(\-?\d+(?:\.\d+)?)(px|%)?$/);
-                if (match) {
-                  const num = parseFloat(match[1]);
-                  const unit = match[2] === '%' ? 'PERCENT' : 'PIXELS';
-                  await loadFontsForNodes([node as TextNode]); // Ensure font is loaded
-                  (node as TextNode).letterSpacing = { value: num, unit: unit as ('PIXELS' | 'PERCENT') };
-                  modifiedCount++;
-                  notifyMessage = `Letter Spacing set to ${num}${unit === 'PIXELS' ? 'px' : '%'}`;
-                } else {
-                  figma.notify("Invalid letter spacing. Use e.g., '2px' or '5%'.", { error: true });
-                  figma.closePlugin();
-                  return;
-                }
-              }
-              break;
-          }
-        } catch (e) {
-          console.error(`Error applying ${propertyType}:`, e);
-          figma.notify(`Error applying property: ${(e as Error).message}`, { error: true });
-        }
-      }
-
-      if (modifiedCount > 0) {
-        figma.notify(`${notifyMessage} for ${modifiedCount} layer(s).`);
-      } else if (selection.length > 0) {
-        // This case might be hit if no applicable layers were found after the initial check,
-        // or if the property didn't exist on any selected item.
-        // The command-specific handlers should ideally pre-filter this.
-        figma.notify(`No applicable layers found for this operation.`, { timeout: 3000 });
-      }
+      await handleSubmitValue(msg, selection);
+      break;
+    case 'close-plugin':
       figma.closePlugin();
       break;
-
-    case 'close-plugin': // Generic close from any UI
-      figma.closePlugin();
-      break;
-
-    // Messages from auto-alignment-control.html (for 'aa' command)
     case 'set-alignment':
-      // This logic is specific to the 'aa' command's UI and state
-      if (figma.command === 'aa') {
-        const [uiPrimary, uiCounter] = alignmentMap[msg.index];
-        for (const node of selection) {
-          if (isValidAutoLayoutNode(node)) {
-            let finalPrimaryAlign: FrameNode['primaryAxisAlignItems'];
-            let finalCounterAlign: FrameNode['counterAxisAlignItems'];
-            if (pluginIsDistributeModeActive) {
-              finalPrimaryAlign = 'SPACE_BETWEEN';
-              finalCounterAlign = uiCounter; // Assuming UI sends counter correctly for distribute
-              stashedCounterAxisAlignment = finalCounterAlign;
-            } else {
-              if (node.layoutMode === 'VERTICAL') {
-                finalPrimaryAlign = uiCounter;
-                finalCounterAlign = uiPrimary;
-              } else {
-                finalPrimaryAlign = uiPrimary;
-                finalCounterAlign = uiCounter;
-              }
-              stashedPrimaryAxisAlignment = finalPrimaryAlign;
-              stashedCounterAxisAlignment = finalCounterAlign;
-            }
-            node.primaryAxisAlignItems = finalPrimaryAlign;
-            node.counterAxisAlignItems = finalCounterAlign;
-          }
-        }
-        sendCurrentStateToUIForAA(); // AA specific update
-      }
+      handleSetAlignmentAA(msg, selection);
       break;
     case 'toggle-distribution':
-      // Specific to 'aa' command
-      if (figma.command === 'aa') {
-        pluginIsDistributeModeActive = !pluginIsDistributeModeActive;
-        for (const node of selection) {
-          if (isValidAutoLayoutNode(node)) {
-            if (pluginIsDistributeModeActive) {
-              node.primaryAxisAlignItems = 'SPACE_BETWEEN';
-              node.counterAxisAlignItems = stashedCounterAxisAlignment;
-            } else {
-              node.primaryAxisAlignItems = stashedPrimaryAxisAlignment;
-              node.counterAxisAlignItems = stashedCounterAxisAlignment;
-            }
-          }
-        }
-        sendCurrentStateToUIForAA(); // AA specific update
-      }
+      handleToggleDistributionAA(selection);
       break;
-    case 'get-initial-visibility': // Specific to 'aa' command
-       if (figma.command === 'aa') {
-         sendCurrentStateToUIForAA();
-       }
+    case 'get-initial-visibility':
+      handleGetInitialVisibilityAA();
       break;
     case 'set-layout-direction':
-      if (figma.command === 'aa') {
-        const direction = msg.direction as 'HORIZONTAL' | 'VERTICAL';
-        if (direction) {
-          let changedCount = 0;
-          for (const node of selection) {
-            if (isValidAutoLayoutNode(node) && node.children) {
-              const childrenSizing: { id: string; h: 'FIXED' | 'HUG' | 'FILL'; v: 'FIXED' | 'HUG' | 'FILL' }[] = [];
-              for (const child of node.children) {
-                if ('layoutSizingHorizontal' in child && 'layoutSizingVertical' in child) {
-                  childrenSizing.push({
-                    id: child.id,
-                    h: child.layoutSizingHorizontal,
-                    v: child.layoutSizingVertical
-                  });
-                }
-              }
-              
-              node.layoutMode = direction;
-              
-              for (const child of node.children) {
-                const originalSizing = childrenSizing.find(s => s.id === child.id);
-                if (originalSizing && 'layoutSizingHorizontal' in child && 'layoutSizingVertical' in child) {
-                  child.layoutSizingHorizontal = originalSizing.h;
-                  child.layoutSizingVertical = originalSizing.v;
-                }
-              }
-              changedCount++;
-            }
-          }
-          if (changedCount > 0) {
-            figma.notify(`Layout direction set to ${direction.toLowerCase()} for ${changedCount} layer(s).`);
-          }
-          sendCurrentStateToUIForAA(); // Update UI with new layout mode
-        }
-      }
+      handleSetLayoutDirectionAA(msg, selection);
       break;
-    case 'set-stroke': // This was from 'aa' UI, but seems general
-      // Let's keep its original logic for now, applying to current selection
-      let appliedStrokeCount = 0;
-      for (const node of selection) {
-        if ('strokes' in node && 'strokeWeight' in node) {
-          const strokeWeight = msg.value;
-          const strokableNode = node as FrameNode | RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode | TextNode | ComponentNode | InstanceNode | ComponentSetNode;
-          if (strokeWeight > 0) {
-            if (strokableNode.strokes.length === 0) {
-              strokableNode.strokes = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }];
-            }
-            strokableNode.strokeWeight = strokeWeight;
-          } else {
-            strokableNode.strokeWeight = 0;
-          }
-          appliedStrokeCount++;
-        }
-      }
-      if (appliedStrokeCount > 0) {
-        figma.notify(`Stroke set to ${msg.value} for ${appliedStrokeCount} layer(s).`);
-      }
-      // No figma.closePlugin() here, as this message might come from a persistent UI like 'aa'
+    case 'set-stroke':
+      handleSetStrokeFromUIAA(msg, selection);
       break;
     default:
       console.log('Unknown message type from UI:', msg.type);
@@ -823,13 +844,13 @@ figma.ui.onmessage = async msg => { // Made async
 function sendCurrentStateToUIForAA() {
   const selection = figma.currentPage.selection;
   const hasValidSelection = selection.some(isValidAutoLayoutNode);
-  let layoutMode: FrameNode['layoutMode'] | null = null;
-  let currentFigmaPrimaryAlign: FrameNode['primaryAxisAlignItems'] | null = null;
-  let currentFigmaCounterAlign: FrameNode['counterAxisAlignItems'] | null = null;
+  let layoutMode: AutoLayoutNode['layoutMode'] | null = null; // Use AutoLayoutNode
+  let currentFigmaPrimaryAlign: AutoLayoutNode['primaryAxisAlignItems'] | null = null; // Use AutoLayoutNode
+  let currentFigmaCounterAlign: AutoLayoutNode['counterAxisAlignItems'] | null = null; // Use AutoLayoutNode
   let isDistributeActiveInFigma = false;
 
   if (hasValidSelection) {
-    const autoLayoutNode = selection.find(isValidAutoLayoutNode) as FrameNode | ComponentNode | InstanceNode | ComponentSetNode;
+    const autoLayoutNode = selection.find(isValidAutoLayoutNode) as AutoLayoutNode; // Use AutoLayoutNode
     layoutMode = autoLayoutNode.layoutMode;
     currentFigmaPrimaryAlign = autoLayoutNode.primaryAxisAlignItems;
     currentFigmaCounterAlign = autoLayoutNode.counterAxisAlignItems;
@@ -854,6 +875,261 @@ function sendCurrentStateToUIForAA() {
   });
 }
 
+// --- START NEW COMMAND HANDLERS & DISPATCHER ---
+
+// Helper to check selection and notify if empty for commands that require it
+function ensureSelection(selection: readonly SceneNode[], commandName: string): boolean {
+  if (selection.length === 0) {
+    figma.notify(`Please select at least one layer for "${commandName}".`, { error: true });
+    figma.closePlugin();
+    return false;
+  }
+  return true;
+}
+
+async function handleWidthHug(selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, 'Width to Hug')) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if (node.type === 'GROUP') {
+      figma.notify(`Group "${node.name}" naturally hugs its content.`, { timeout: 2000 });
+    } else if ('layoutSizingHorizontal' in node) {
+      const sizableNode = node as SizableNode;
+      if (sizableNode.type === 'TEXT') {
+        const textNode = sizableNode as TextNode;
+        const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as AutoLayoutNode).layoutMode !== 'NONE';
+        if (parentIsAutoLayout) {
+          textNode.layoutSizingHorizontal = 'HUG';
+        } else {
+          await loadFontsForNodes([textNode]);
+          textNode.textAutoResize = 'WIDTH_AND_HEIGHT';
+        }
+      } else {
+        sizableNode.layoutSizingHorizontal = 'HUG';
+      }
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Width set to Hug for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify('No applicable layers found for "Width to Hug".', { timeout: 2000});
+  figma.closePlugin();
+}
+
+async function handleHeightHug(selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, 'Height to Hug')) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if (node.type === 'GROUP') {
+      figma.notify(`Group "${node.name}" naturally hugs its content.`, { timeout: 2000 });
+    } else if ('layoutSizingVertical' in node) {
+      const sizableNode = node as SizableNode;
+      if (sizableNode.type === 'TEXT') {
+        const textNode = sizableNode as TextNode;
+        const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as AutoLayoutNode).layoutMode !== 'NONE';
+        if (parentIsAutoLayout) {
+          textNode.layoutSizingVertical = 'HUG';
+        } else {
+          await loadFontsForNodes([textNode]);
+          textNode.textAutoResize = 'HEIGHT';
+        }
+      } else {
+        sizableNode.layoutSizingVertical = 'HUG';
+      }
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Height set to Hug for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify('No applicable layers found for "Height to Hug".', { timeout: 2000});
+  figma.closePlugin();
+}
+
+function handleWidthFill(selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, 'Width to Fill')) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if (node.type === 'GROUP') {
+       figma.notify(`Fill/Fixed sizing is not directly applicable to Groups. Consider Frame with Auto Layout.`, { timeout: 3000 });
+    } else if ('layoutSizingHorizontal' in node) {
+      const sizableNode = node as SizableNode;
+      if (sizableNode.parent && sizableNode.parent.type === 'FRAME' && (sizableNode.parent as AutoLayoutNode).layoutMode !== 'NONE') {
+        sizableNode.layoutSizingHorizontal = 'FILL';
+        modifiedCount++;
+      } else {
+        figma.notify(`"${sizableNode.name}" cannot be set to Fill Width as its parent is not an Auto Layout frame.`, { timeout: 3000 });
+      }
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Width set to Fill for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify('No applicable layers found for "Width to Fill".', { timeout: 2000});
+  figma.closePlugin();
+}
+
+function handleHeightFill(selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, 'Height to Fill')) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+     if (node.type === 'GROUP') {
+       figma.notify(`Fill/Fixed sizing is not directly applicable to Groups. Consider Frame with Auto Layout.`, { timeout: 3000 });
+    } else if ('layoutSizingVertical' in node) {
+      const sizableNode = node as SizableNode;
+      if (sizableNode.parent && sizableNode.parent.type === 'FRAME' && (sizableNode.parent as AutoLayoutNode).layoutMode !== 'NONE') {
+        sizableNode.layoutSizingVertical = 'FILL';
+        modifiedCount++;
+      } else {
+        figma.notify(`"${sizableNode.name}" cannot be set to Fill Height as its parent is not an Auto Layout frame.`, { timeout: 3000 });
+      }
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Height set to Fill for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify('No applicable layers found for "Height to Fill".', { timeout: 2000});
+  figma.closePlugin();
+}
+
+function setPaddingForSelection(paddingValue: number, selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, `Set Padding to ${paddingValue}`)) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if ('paddingTop' in node && 'paddingBottom' in node && 'paddingLeft' in node && 'paddingRight' in node) {
+      const paddedNode = node as PaddingApplicableNode;
+      paddedNode.paddingTop = paddingValue;
+      paddedNode.paddingBottom = paddingValue;
+      paddedNode.paddingLeft = paddingValue;
+      paddedNode.paddingRight = paddingValue;
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Padding set to ${paddingValue} for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify(`No applicable layers found for "Set Padding to ${paddingValue}".`, { timeout: 2000});
+  figma.closePlugin();
+}
+
+function setBorderRadiusForSelection(radius: number, selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, `Set Border Radius to ${radius}`)) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if ('cornerRadius' in node) {
+      (node as CornerRadiusApplicableNode).cornerRadius = radius;
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Border Radius set to ${radius} for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify(`No applicable layers found for "Set Border Radius to ${radius}".`, { timeout: 2000});
+  figma.closePlugin();
+}
+
+function setStrokeWeightForSelection(weight: number, selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, `Set Stroke to ${weight}`)) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if ('strokes' in node && 'strokeWeight' in node) {
+      const strokableNode = node as StrokableNode;
+      if (weight > 0 && strokableNode.strokes.length === 0) {
+        strokableNode.strokes = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }]; // Add default black stroke
+      }
+      strokableNode.strokeWeight = weight;
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Stroke set to ${weight} for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify(`No applicable layers found for "Set Stroke to ${weight}".`, { timeout: 2000});
+  figma.closePlugin();
+}
+
+function handleFillDefault(selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, 'Add Default Fill')) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if ('fills' in node) {
+      (node as FillableNode).fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]; // Default white fill
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Default fill added to ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify('No applicable layers found for "Add Default Fill".', { timeout: 2000});
+  figma.closePlugin();
+}
+
+function handleFillRemoveAll(selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, 'Remove All Fills')) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if ('fills' in node) {
+      (node as FillableNode).fills = [];
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`All fills removed from ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify('No applicable layers found for "Remove All Fills".', { timeout: 2000});
+  figma.closePlugin();
+}
+
+function setGapForSelection(gapValue: number, selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, `Set Gap to ${gapValue}`)) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if (isValidAutoLayoutNode(node)) {
+      node.itemSpacing = gapValue;
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Gap set to ${gapValue} for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify(`No applicable Auto Layout layers found for "Set Gap to ${gapValue}".`, { timeout: 2000});
+  figma.closePlugin();
+}
+
+function setAutoLayoutDirection(direction: 'HORIZONTAL' | 'VERTICAL', selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, `Set Auto Layout to ${direction.toLowerCase()}`)) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if (isValidAutoLayoutNode(node) && node.children) {
+       const childrenSizing: { id: string; h: 'FIXED' | 'HUG' | 'FILL'; v: 'FIXED' | 'HUG' | 'FILL' }[] = [];
+        for (const child of node.children) {
+          if ('layoutSizingHorizontal' in child && 'layoutSizingVertical' in child) {
+            childrenSizing.push({
+              id: child.id,
+              h: (child as SizableNode).layoutSizingHorizontal,
+              v: (child as SizableNode).layoutSizingVertical
+            });
+          }
+        }
+        node.layoutMode = direction;
+        for (const child of node.children) {
+          const originalSizing = childrenSizing.find(s => s.id === child.id);
+          if (originalSizing && 'layoutSizingHorizontal' in child && 'layoutSizingVertical' in child) {
+            (child as SizableNode).layoutSizingHorizontal = originalSizing.h;
+            (child as SizableNode).layoutSizingVertical = originalSizing.v;
+          }
+        }
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Auto Layout direction set to ${direction.toLowerCase()} for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify(`No applicable Auto Layout layers found.`, { timeout: 2000});
+  figma.closePlugin();
+}
+
+
+const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Promise<void> | void } = {
+  'wh': handleWidthHug,
+  'hh': handleHeightHug,
+  'wf': handleWidthFill,
+  'hf': handleHeightFill,
+  'p0': (sel) => setPaddingForSelection(0, sel),
+  'p16': (sel) => setPaddingForSelection(16, sel),
+  'br0': (sel) => setBorderRadiusForSelection(0, sel),
+  'br8': (sel) => setBorderRadiusForSelection(8, sel),
+  's0': (sel) => setStrokeWeightForSelection(0, sel),
+  's1': (sel) => setStrokeWeightForSelection(1, sel),
+  'fill0': handleFillRemoveAll,
+  'fill1': handleFillDefault,
+  'gap0': (sel) => setGapForSelection(0, sel),
+  'gap8': (sel) => setGapForSelection(8, sel),
+  'gap16': (sel) => setGapForSelection(16, sel),
+  'aa.h': (sel) => setAutoLayoutDirection('HORIZONTAL', sel),
+  'aa.v': (sel) => setAutoLayoutDirection('VERTICAL', sel),
+};
+
+// --- END NEW COMMAND HANDLERS & DISPATCHER ---
 
 if (figma.command === 'aa') {
   figma.showUI(__html__, { width: 180, height: 180, themeColors: true });
@@ -864,13 +1140,19 @@ if (figma.command === 'aa') {
     }
   });
   // figma.ui.onmessage is now global
+} else if (commandHandlers[figma.command]) {
+  const selection = figma.currentPage.selection;
+  // Most handlers in commandHandlers already call ensureSelection or don't need selection.
+  // If a generic pre-selection check is desired for all mapped commands, it could be added here.
+  // For now, let individual handlers manage their selection needs.
+  commandHandlers[figma.command](selection);
 } else if (figma.command === 'setPadding') {
   const selection = figma.currentPage.selection;
   if (selection.length === 0) {
     figma.notify("Please select at least one layer.", { error: true });
     figma.closePlugin();
   } else {
-    const isPaddingApplicable = (node: SceneNode): node is FrameNode | ComponentNode | InstanceNode | ComponentSetNode =>
+    const isPaddingApplicable = (node: SceneNode): node is PaddingApplicableNode =>
       'paddingLeft' in node && 'paddingRight' in node && 'paddingTop' in node && 'paddingBottom' in node;
 
     if (!selection.some(isPaddingApplicable)) {
@@ -924,7 +1206,7 @@ if (figma.command === 'aa') {
     figma.notify("Please select at least one layer.", { error: true });
     figma.closePlugin();
   } else {
-    const isBorderRadiusApplicable = (node: SceneNode): node is SceneNode & { cornerRadius: number | typeof figma.mixed } =>
+    const isBorderRadiusApplicable = (node: SceneNode): node is CornerRadiusApplicableNode =>
       'cornerRadius' in node;
 
     if (!selection.some(isBorderRadiusApplicable)) {
@@ -996,7 +1278,6 @@ if (figma.command === 'aa') {
     figma.notify("Please select at least one layer.", { error: true });
     figma.closePlugin();
   } else {
-    // isValidAutoLayoutNode already checks for itemSpacing applicability implicitly
     if (!selection.some(isValidAutoLayoutNode)) {
       figma.notify("Gap is not applicable to any selected Auto Layout layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
@@ -1024,7 +1305,7 @@ if (figma.command === 'aa') {
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setTextSize', title: 'Set Font Size (e.g., 16)', currentValue: commonFontSize });
     }
   }
-} else if (figma.command === 'ls..') { // Set Text Letter Spacing
+} else if (figma.command === 't.ls') { // Renamed from 'ls..' to 't.ls' to match manifest
   const selection = figma.currentPage.selection;
   if (selection.length === 0) {
     figma.notify("Please select at least one text layer.", { error: true });
@@ -1042,290 +1323,9 @@ if (figma.command === 'aa') {
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setTextLetterSpacing', title: 'Set Letter Spacing (e.g., 2px or 5%)', currentValue: commonLetterSpacing });
     }
   }
-} else if (figma.command === 's1' || figma.command === 's0') {
-  const selection = figma.currentPage.selection;
-  let S = selection.length;
-  if (S === 0) {
-    figma.notify('Please select at least one layer.', { error: true });
-    figma.closePlugin();
-  } else {
-    let modifiedCount = 0;
-    const strokeWeight = figma.command === 's1' ? 1 : 0;
-    const commandName = `Set Stroke to ${strokeWeight}`;
-
-    for (const node of selection) {
-      if ('strokes' in node && 'strokeWeight' in node) {
-        const strokableNode = node as FrameNode | RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode | TextNode | ComponentNode | InstanceNode | ComponentSetNode;
-        if (strokeWeight > 0) {
-          if (strokableNode.strokes.length === 0) {
-            strokableNode.strokes = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }];
-          }
-          strokableNode.strokeWeight = strokeWeight;
-        } else {
-          strokableNode.strokeWeight = 0;
-        }
-        modifiedCount++;
-      }
-    }
-
-    if (modifiedCount > 0) {
-      figma.notify(`Applied "${commandName}" to ${modifiedCount} layer${modifiedCount === 1 ? '' : 's'}.`);
-    } else {
-      figma.notify(`No applicable layers found for "${commandName}".`, { timeout: 3000 });
-    }
-    figma.closePlugin();
-  }
-} else if (figma.command === 'fill1' || figma.command === 'fill0') {
-  const selection = figma.currentPage.selection;
-  let S = selection.length;
-  if (S === 0) {
-    figma.notify('Please select at least one layer.', { error: true });
-    figma.closePlugin();
-  } else {
-    let modifiedCount = 0;
-    const commandName = figma.command === 'fill1' ? 'Add Default Fill' : 'Remove All Fills';
-
-    for (const node of selection) {
-      if ('fills' in node) {
-        const fillableNode = node as SceneNode & { fills: readonly Paint[] | typeof figma.mixed }; 
-        if (figma.command === 'fill1') {
-          fillableNode.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]; // Default white fill1
-        } else { 
-          fillableNode.fills = [];
-        }
-        modifiedCount++;
-      }
-    }
-
-    if (modifiedCount > 0) {
-      figma.notify(`Applied "${commandName}" to ${modifiedCount} layer${modifiedCount === 1 ? '' : 's'}.`);
-    } else {
-      figma.notify(`No applicable layers found for "${commandName}".`, { timeout: 3000 });
-    }
-    figma.closePlugin();
-  }
-} else if (figma.command === 'aa.h' || figma.command === 'aa.v') {
-  const selection = figma.currentPage.selection;
-  if (selection.length === 0) {
-    figma.notify("Please select at least one Auto Layout layer.", { error: true });
-    figma.closePlugin();
-  } else {
-    let modifiedCount = 0;
-    const newLayoutMode = figma.command === 'aa.h' ? 'HORIZONTAL' : 'VERTICAL';
-    const commandName = `Set Auto Layout to ${newLayoutMode.toLowerCase()}`;
-
-    for (const node of selection) {
-      if (isValidAutoLayoutNode(node) && node.children) {
-        const childrenSizing: { id: string; h: 'FIXED' | 'HUG' | 'FILL'; v: 'FIXED' | 'HUG' | 'FILL' }[] = [];
-        for (const child of node.children) {
-          if ('layoutSizingHorizontal' in child && 'layoutSizingVertical' in child) {
-            childrenSizing.push({
-              id: child.id,
-              h: child.layoutSizingHorizontal,
-              v: child.layoutSizingVertical
-            });
-          }
-        }
-
-        node.layoutMode = newLayoutMode;
-
-        for (const child of node.children) {
-          const originalSizing = childrenSizing.find(s => s.id === child.id);
-          if (originalSizing && 'layoutSizingHorizontal' in child && 'layoutSizingVertical' in child) {
-            child.layoutSizingHorizontal = originalSizing.h;
-            child.layoutSizingVertical = originalSizing.v;
-          }
-        }
-        modifiedCount++;
-      }
-    }
-
-    if (modifiedCount > 0) {
-      figma.notify(`Applied "${commandName}" to ${modifiedCount} layer${modifiedCount === 1 ? '' : 's'}.`);
-    } else {
-      figma.notify(`No applicable Auto Layout layers found for "${commandName}".`, { timeout: 3000 });
-    }
-    figma.closePlugin();
-  }
-} else { // Fallback for existing direct commands not using the new input dialog
-  const selection = figma.currentPage.selection;
-  let S = selection.length; 
-
-  // Check for selection unless it's a command that doesn't need it (like 'aa' or new input dialog commands)
-  const commandsRequiringSelection = ['wh', 'hh', 'wf', 'hf', 'p0', 'p16', 'br8', 'br0', 'gap0', 'gap8', 'gap16'];
-  if (S === 0 && commandsRequiringSelection.includes(figma.command)) { 
-    figma.notify('Please select at least one layer.', { error: true });
-    figma.closePlugin();
-  } else if (figma.command === 'gap0' || figma.command === 'gap8' || figma.command === 'gap16') {
-      let modifiedCount = 0;
-      const gapValue = figma.command === 'gap0' ? 0 : figma.command === 'gap8' ? 8 : 16;
-      const commandName = `Set Gap to ${gapValue}`;
-  
-      for (const node of selection) {
-        if (isValidAutoLayoutNode(node)) {
-          node.itemSpacing = gapValue;
-          modifiedCount++;
-        }
-      }
-  
-      if (modifiedCount > 0) {
-        figma.notify(`Applied "${commandName}" to ${modifiedCount} layer${modifiedCount === 1 ? '' : 's'}.`);
-      } else {
-        figma.notify(`No applicable Auto Layout layers found for "${commandName}".`, { timeout: 3000 });
-      }
-      figma.closePlugin();
-  } else if (commandsRequiringSelection.includes(figma.command) || ['wh', 'hh', 'wf', 'hf', 'p0', 'p16', 'br8', 'br0'].includes(figma.command) ) {
-    // Covers other existing direct commands
-    (async () => {
-      let modifiedCount = 0;
-      let commandName = '';
-
-      for (const node of selection) {
-        try {
-          if (node.type === 'GROUP') {
-            commandName = figma.command === 'wh' ? 'Width to Hug' : figma.command === 'hh' ? 'Height to Hug' : figma.command === 'wf' ? 'Width to Fill' : 'Height to Fill';
-            if (figma.command === 'wh' || figma.command === 'hh') {
-              figma.notify(`Group "${node.name}" naturally hugs its content.`, { timeout: 2000 });
-            } else {
-               figma.notify(`Fill/Fixed sizing is not directly applicable to Groups. Consider Frame with Auto Layout.`, { timeout: 3000 });
-            }
-          } else if (
-            node.type === 'FRAME' ||
-            node.type === 'COMPONENT' ||
-            node.type === 'COMPONENT_SET' ||
-            node.type === 'INSTANCE' ||
-            node.type === 'TEXT' ||
-            node.type === 'RECTANGLE'
-          ) {
-            const operableNode = node as FrameNode | ComponentNode | ComponentSetNode | InstanceNode | TextNode | RectangleNode;
-
-            if (figma.command === 'wh') {
-              commandName = 'Width to Hug';
-              if (operableNode.type === 'TEXT') {
-                const textNode = operableNode as TextNode;
-                const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as FrameNode).layoutMode !== 'NONE';
-                if (parentIsAutoLayout) {
-                  textNode.layoutSizingHorizontal = 'HUG';
-                } else {
-                  if (textNode.fontName !== figma.mixed) {
-                    await figma.loadFontAsync(textNode.fontName as FontName);
-                  } else {
-                    const len = textNode.characters.length;
-                    const uniqueFonts = new Set<string>(); // Use stringified FontName as key
-                    for (let i = 0; i < len; i++) {
-                      const font = textNode.getRangeFontName(i, i + 1) as FontName;
-                      const fontKey = JSON.stringify(font);
-                      if (!uniqueFonts.has(fontKey)) {
-                        await figma.loadFontAsync(font);
-                        uniqueFonts.add(fontKey);
-                      }
-                    }
-                  }
-                  textNode.textAutoResize = 'WIDTH_AND_HEIGHT';
-                }
-              } else {
-                operableNode.layoutSizingHorizontal = 'HUG';
-              }
-              modifiedCount++;
-            } else if (figma.command === 'hh') {
-              commandName = 'Height to Hug';
-              if (operableNode.type === 'TEXT') {
-                const textNode = operableNode as TextNode;
-                const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as FrameNode).layoutMode !== 'NONE';
-                if (parentIsAutoLayout) {
-                  textNode.layoutSizingVertical = 'HUG';
-                } else {
-                  if (textNode.fontName !== figma.mixed) {
-                    await figma.loadFontAsync(textNode.fontName as FontName);
-                  } else {
-                    const len = textNode.characters.length;
-                    const uniqueFonts = new Set<string>(); // Use stringified FontName as key
-                    for (let i = 0; i < len; i++) {
-                      const font = textNode.getRangeFontName(i, i + 1) as FontName;
-                      const fontKey = JSON.stringify(font);
-                      if (!uniqueFonts.has(fontKey)) {
-                        await figma.loadFontAsync(font);
-                        uniqueFonts.add(fontKey);
-                      }
-                    }
-                  }
-                  textNode.textAutoResize = 'HEIGHT';
-                }
-              } else {
-                operableNode.layoutSizingVertical = 'HUG';
-              }
-              modifiedCount++;
-            } else if (figma.command === 'wf') {
-              commandName = 'Width to Fill';
-              if (operableNode.parent && operableNode.parent.type === 'FRAME' && (operableNode.parent as FrameNode).layoutMode !== 'NONE') {
-                operableNode.layoutSizingHorizontal = 'FILL';
-                modifiedCount++;
-              } else {
-                   figma.notify(`"${operableNode.name}" cannot be set to Fill Width as its parent is not an Auto Layout frame.`, { timeout: 3000 });
-              }
-            } else if (figma.command === 'hf') {
-              commandName = 'Height to Fill';
-              if (operableNode.parent && operableNode.parent.type === 'FRAME' && (operableNode.parent as FrameNode).layoutMode !== 'NONE') {
-                operableNode.layoutSizingVertical = 'FILL';
-                modifiedCount++;
-              } else {
-                  figma.notify(`"${operableNode.name}" cannot be set to Fill Height as its parent is not an Auto Layout frame.`, { timeout: 3000 });
-              }
-            } else if (figma.command === 'p0') {
-              commandName = 'Set All Padding to 0';
-              if ('paddingTop' in operableNode && 'paddingBottom' in operableNode && 'paddingLeft' in operableNode && 'paddingRight' in operableNode) {
-                const paddedNode = operableNode as FrameNode | ComponentNode | InstanceNode | ComponentSetNode;
-                paddedNode.paddingTop = 0;
-                paddedNode.paddingBottom = 0;
-                paddedNode.paddingLeft = 0;
-                paddedNode.paddingRight = 0;
-                modifiedCount++;
-              }
-            } else if (figma.command === 'p16') {
-              commandName = 'Set All Padding to 16';
-              if ('paddingTop' in operableNode && 'paddingBottom' in operableNode && 'paddingLeft' in operableNode && 'paddingRight' in operableNode) {
-                const paddedNode = operableNode as FrameNode | ComponentNode | InstanceNode | ComponentSetNode;
-                paddedNode.paddingTop = 16;
-                paddedNode.paddingBottom = 16;
-                paddedNode.paddingLeft = 16;
-                paddedNode.paddingRight = 16;
-                modifiedCount++;
-              }
-            } else if (figma.command === 'br8') {
-              commandName = 'Set Border Radius to 8px';
-              if ('cornerRadius' in operableNode) {
-                (operableNode as any).cornerRadius = 8; // Cast to any for mixed type
-                modifiedCount++;
-              }
-            } else if (figma.command === 'br0') {
-              commandName = 'Set Border Radius to 0px';
-              if ('cornerRadius' in operableNode) {
-                (operableNode as any).cornerRadius = 0; // Cast to any for mixed type
-                modifiedCount++;
-              }
-            }
-          }
-        } catch (e) {
-          figma.notify(`Error applying to "${node.name}": ${(e as Error).message}`, { error: true, timeout: 3000 });
-        }
-      }
-
-      if (modifiedCount > 0 && commandName) {
-        const plural = modifiedCount === 1 ? '' : 's';
-        figma.notify(`Applied "${commandName}" to ${modifiedCount} layer${plural}.`);
-      } else if (S > 0 && commandName !== '' && !commandsRequiringSelection.includes(figma.command)) {
-        figma.notify(`No applicable layers found for "${commandName}".`, { timeout: 3000 });
-      }
-      figma.closePlugin();
-    })().catch(e => {
-      console.error("Error in async command execution:", e);
-      figma.notify(`An unexpected error occurred: ${(e as Error).message}`, { error: true });
-      figma.closePlugin();
-    });
-  } else if (figma.command && !['aa', 'setPadding', 'setHeight', 'setWidth', 'setBorderRadius', 'setStrokeWidth', 'setStrokeColour', 'setFillColour', 'setGap', 's1', 's0', 'fill1', 'fill0', 'gap0', 'gap8', 'gap16', 'wh', 'hh', 'wf', 'hf', 'p0', 'p16', 'br8', 'br0', 'aa.h', 'aa.v', 't.s', 'ls..'].includes(figma.command)) {
-     // Unknown command that wasn't handled by any previous block
-     console.log("Unknown command, closing plugin:", figma.command);
+} else if (figma.command) { // Fallback for any unhandled command
+     console.log("Unknown or unhandled command, closing plugin:", figma.command);
+     figma.notify(`Command "${figma.command}" is not recognized or has no specific handler.`, {error: true, timeout: 3000});
      figma.closePlugin();
-  }
-  // If figma.command is one of the new UI commands, or 'aa', plugin closure is handled by UI interaction or submit.
 }
+// Plugin closure for commands handled by commandHandlers or UI interactions is managed within those handlers/interactions.
