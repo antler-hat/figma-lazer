@@ -110,6 +110,14 @@
     {
       "name": "g..: Set Gap",
       "command": "setGap"
+    },
+    {
+      "name": "t.ls - Set Text Letter Spacing",
+      "command": "t.ls"
+    },
+    {
+      "name": "t.s - Set Text Size",
+      "command": "t.s"
     }
   ],
   "ui": "dist/auto-alignment-control.html"

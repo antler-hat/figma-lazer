@@ -91,7 +91,7 @@ function isValidAutoLayoutNode(node: SceneNode): node is FrameNode | ComponentNo
  */
 function getCommonPropertyValue(
   nodes: readonly SceneNode[],
-  propertyName: keyof SceneNode | 'itemSpacing' | 'paddingLeft' | 'paddingRight' | 'paddingTop' | 'paddingBottom' | 'cornerRadius' | 'strokeWeight' | 'width' | 'height', // Add specific keys for type safety
+  propertyName: keyof SceneNode | 'itemSpacing' | 'paddingLeft' | 'paddingRight' | 'paddingTop' | 'paddingBottom' | 'cornerRadius' | 'strokeWeight' | 'width' | 'height' | 'fontSize' | 'letterSpacing', // Added fontSize and letterSpacing
   isApplicable: (node: SceneNode) => boolean
 ): any | null {
   const applicableNodes = nodes.filter(isApplicable);
@@ -213,6 +213,72 @@ function getCommonSolidPaintColorHex(
   return commonColorHex;
 }
 
+/**
+ * Gets a common letter spacing value string (e.g., "10px", "5%")
+ * if all applicable text nodes have the same letter spacing.
+ */
+function getCommonLetterSpacingValue(nodes: readonly SceneNode[]): string | null {
+  const applicableNodes = nodes.filter(
+    (node): node is TextNode => node.type === 'TEXT' && 'letterSpacing' in node
+  );
+
+  if (applicableNodes.length === 0) {
+    return null;
+  }
+
+  const firstNodeLetterSpacing = applicableNodes[0].letterSpacing;
+  if (firstNodeLetterSpacing === figma.mixed) {
+    return null;
+  }
+
+  const firstValueString = `${firstNodeLetterSpacing.value}${firstNodeLetterSpacing.unit === 'PIXELS' ? 'px' : '%'}`;
+
+  if (applicableNodes.length === 1) {
+    return firstValueString;
+  }
+
+  for (let i = 1; i < applicableNodes.length; i++) {
+    const currentNodeLetterSpacing = applicableNodes[i].letterSpacing;
+    if (
+      currentNodeLetterSpacing === figma.mixed ||
+      currentNodeLetterSpacing.value !== firstNodeLetterSpacing.value ||
+      currentNodeLetterSpacing.unit !== firstNodeLetterSpacing.unit
+    ) {
+      return null;
+    }
+  }
+  return firstValueString;
+}
+
+// Helper function to load all unique fonts for a set of text nodes
+async function loadFontsForNodes(nodes: readonly TextNode[]): Promise<void> {
+  const fontsToLoad: FontName[] = [];
+  const loadedFontKeys = new Set<string>(); // To avoid loading the same font multiple times
+
+  for (const node of nodes) {
+    if (node.fontName === figma.mixed) {
+      const len = node.characters.length;
+      for (let i = 0; i < len; i++) {
+        const font = node.getRangeFontName(i, i + 1) as FontName;
+        const fontKey = JSON.stringify(font);
+        if (!loadedFontKeys.has(fontKey)) {
+          fontsToLoad.push(font);
+          loadedFontKeys.add(fontKey);
+        }
+      }
+    } else {
+      const font = node.fontName as FontName;
+      const fontKey = JSON.stringify(font);
+      if (!loadedFontKeys.has(fontKey)) {
+        fontsToLoad.push(font);
+        loadedFontKeys.add(fontKey);
+      }
+    }
+  }
+  await Promise.all(fontsToLoad.map(font => figma.loadFontAsync(font)));
+}
+
+
 // --- END HELPER FUNCTIONS FOR PREFILLING INPUTS ---
 
 // --- START NEW HELPER FUNCTION FOR PERCENTAGE SIZING ---
@@ -333,7 +399,7 @@ let stashedPrimaryAxisAlignment: FrameNode['primaryAxisAlignItems'] = 'CENTER';
 let stashedCounterAxisAlignment: FrameNode['counterAxisAlignItems'] = 'CENTER';
 
 // Centralized UI message handler
-figma.ui.onmessage = msg => {
+figma.ui.onmessage = async msg => { // Made async
   if (!msg || !msg.type) return;
 
   const selection = figma.currentPage.selection; // Common for many actions
@@ -491,6 +557,39 @@ figma.ui.onmessage = msg => {
                   notifyMessage = `Gap set to ${num}`;
                 } else {
                   figma.notify("Invalid gap value.", { error: true });
+                  figma.closePlugin();
+                  return;
+                }
+              }
+              break;
+            case 'setTextSize': // Font Size
+              if (node.type === 'TEXT') {
+                const num = parseFloat(value);
+                if (!isNaN(num) && num > 0) {
+                  await loadFontsForNodes([node as TextNode]); // Ensure font is loaded
+                  (node as TextNode).fontSize = num;
+                  modifiedCount++;
+                  notifyMessage = `Font Size set to ${num}`;
+                } else {
+                  figma.notify("Invalid font size value. Must be a positive number.", { error: true });
+                  figma.closePlugin();
+                  return;
+                }
+              }
+              break;
+            case 'setTextLetterSpacing': // Letter Spacing
+              if (node.type === 'TEXT') {
+                const strValue = String(value).trim().toLowerCase();
+                const match = strValue.match(/^(\-?\d+(?:\.\d+)?)(px|%)?$/);
+                if (match) {
+                  const num = parseFloat(match[1]);
+                  const unit = match[2] === '%' ? 'PERCENT' : 'PIXELS';
+                  await loadFontsForNodes([node as TextNode]); // Ensure font is loaded
+                  (node as TextNode).letterSpacing = { value: num, unit: unit as ('PIXELS' | 'PERCENT') };
+                  modifiedCount++;
+                  notifyMessage = `Letter Spacing set to ${num}${unit === 'PIXELS' ? 'px' : '%'}`;
+                } else {
+                  figma.notify("Invalid letter spacing. Use e.g., '2px' or '5%'.", { error: true });
                   figma.closePlugin();
                   return;
                 }
@@ -825,6 +924,42 @@ if (figma.command === 'aa') {
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setGap', title: 'Set Gap (e.g., 8 or 10-2)', currentValue: commonGap });
     }
   }
+} else if (figma.command === 't.s') { // Set Text Size
+  const selection = figma.currentPage.selection;
+  if (selection.length === 0) {
+    figma.notify("Please select at least one text layer.", { error: true });
+    figma.closePlugin();
+  } else {
+    const isTextNode = (node: SceneNode): node is TextNode => node.type === 'TEXT' && 'fontSize' in node;
+    const textNodes = selection.filter(isTextNode);
+
+    if (textNodes.length === 0) {
+      figma.notify("Font Size is not applicable to any selected layers.", { error: true, timeout: 3000 });
+      figma.closePlugin();
+    } else {
+      const commonFontSize = getCommonPropertyValue(textNodes, 'fontSize', isTextNode);
+      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Font Size" });
+      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setTextSize', title: 'Set Font Size (e.g., 16)', currentValue: commonFontSize });
+    }
+  }
+} else if (figma.command === 't.ls') { // Set Text Letter Spacing
+  const selection = figma.currentPage.selection;
+  if (selection.length === 0) {
+    figma.notify("Please select at least one text layer.", { error: true });
+    figma.closePlugin();
+  } else {
+    const isTextNodeWithLetterSpacing = (node: SceneNode): node is TextNode => node.type === 'TEXT' && 'letterSpacing' in node;
+    const textNodes = selection.filter(isTextNodeWithLetterSpacing);
+
+    if (textNodes.length === 0) {
+      figma.notify("Letter Spacing is not applicable to any selected layers.", { error: true, timeout: 3000 });
+      figma.closePlugin();
+    } else {
+      const commonLetterSpacing = getCommonLetterSpacingValue(textNodes);
+      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Letter Spacing" });
+      figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setTextLetterSpacing', title: 'Set Letter Spacing (e.g., 2px or 5%)', currentValue: commonLetterSpacing });
+    }
+  }
 } else if (figma.command === 's1' || figma.command === 's0') {
   const selection = figma.currentPage.selection;
   let S = selection.length;
@@ -1105,7 +1240,7 @@ if (figma.command === 'aa') {
       figma.notify(`An unexpected error occurred: ${(e as Error).message}`, { error: true });
       figma.closePlugin();
     });
-  } else if (figma.command && !['aa', 'setPadding', 'setHeight', 'setWidth', 'setBorderRadius', 'setStrokeWidth', 'setStrokeColour', 'setFillColour', 'setGap', 's1', 's0', 'fill1', 'fill0', 'gap0', 'gap8', 'gap16', 'wh', 'hh', 'wf', 'hf', 'p0', 'p16', 'br8', 'br0', 'aa.h', 'aa.v'].includes(figma.command)) {
+  } else if (figma.command && !['aa', 'setPadding', 'setHeight', 'setWidth', 'setBorderRadius', 'setStrokeWidth', 'setStrokeColour', 'setFillColour', 'setGap', 's1', 's0', 'fill1', 'fill0', 'gap0', 'gap8', 'gap16', 'wh', 'hh', 'wf', 'hf', 'p0', 'p16', 'br8', 'br0', 'aa.h', 'aa.v', 't.s', 't.ls'].includes(figma.command)) {
      // Unknown command that wasn't handled by any previous block
      console.log("Unknown command, closing plugin:", figma.command);
      figma.closePlugin();
