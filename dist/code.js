@@ -1021,7 +1021,7 @@
         figma.ui.postMessage({ type: "init-input-dialog", propertyType: "setTextSize", title: "Set Font Size (e.g., 16)", currentValue: commonFontSize });
       }
     }
-  } else if (figma.command === "t.ls") {
+  } else if (figma.command === "ls..") {
     const selection = figma.currentPage.selection;
     if (selection.length === 0) {
       figma.notify("Please select at least one text layer.", { error: true });
@@ -1295,7 +1295,7 @@
         figma.notify(`An unexpected error occurred: ${e.message}`, { error: true });
         figma.closePlugin();
       });
-    } else if (figma.command && !["aa", "setPadding", "setHeight", "setWidth", "setBorderRadius", "setStrokeWidth", "setStrokeColour", "setFillColour", "setGap", "s1", "s0", "fill1", "fill0", "gap0", "gap8", "gap16", "wh", "hh", "wf", "hf", "p0", "p16", "br8", "br0", "aa.h", "aa.v", "t.s", "t.ls"].includes(figma.command)) {
+    } else if (figma.command && !["aa", "setPadding", "setHeight", "setWidth", "setBorderRadius", "setStrokeWidth", "setStrokeColour", "setFillColour", "setGap", "s1", "s0", "fill1", "fill0", "gap0", "gap8", "gap16", "wh", "hh", "wf", "hf", "p0", "p16", "br8", "br0", "aa.h", "aa.v", "t.s", "ls.."].includes(figma.command)) {
       console.log("Unknown command, closing plugin:", figma.command);
       figma.closePlugin();
     }

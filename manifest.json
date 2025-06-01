@@ -112,8 +112,8 @@
       "command": "setGap"
     },
     {
-      "name": "t.ls - Set Text Letter Spacing",
-      "command": "t.ls"
+      "name": "ls.. - Set Text Letter Spacing",
+      "command": "ls.."
     },
     {
       "name": "t.s - Set Text Size",
