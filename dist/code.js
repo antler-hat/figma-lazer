@@ -103,22 +103,34 @@
         inputField.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
-                let valueToSubmit = inputField.value;
-                if (numericPropertyTypes.includes(currentPropertyType)) {
-                    // If the input contains '%', send it raw for backend processing.
-                    // Otherwise, try to evaluate it as a mathematical expression.
-                    if (inputField.value.includes('%') && (currentPropertyType === 'setWidth' || currentPropertyType === 'setHeight')) {
-                        valueToSubmit = inputField.value; // Send raw string for width/height with %
+                let valueToSubmit = inputField.value.trim(); // Trim the input value upfront
+                const lowerValue = valueToSubmit.toLowerCase(); // Use lowercase for "fill"/"hug" comparison
+
+                if (currentPropertyType === 'setWidth' || currentPropertyType === 'setHeight') {
+                    if (lowerValue === 'fill' || lowerValue === 'hug') {
+                        valueToSubmit = lowerValue; // Submit "fill" or "hug"
+                    } else if (valueToSubmit.includes('%')) {
+                        // Percentage value, valueToSubmit is already correct (original trimmed input)
                     } else {
-                        const evaluatedValue = evaluateMathematicalExpression(inputField.value);
+                        // Try to evaluate as a mathematical expression
+                        const evaluatedValue = evaluateMathematicalExpression(valueToSubmit);
                         if (evaluatedValue !== null && typeof evaluatedValue === 'number') {
                             valueToSubmit = String(evaluatedValue);
                         }
-                        // If evaluation returns null (error or not a math expression that doesn't contain '%'),
-                        // we'll submit the original inputField.value,
-                        // and let the plugin's parseFloat handle it.
+                        // If not "fill", "hug", "%", or a valid math expression,
+                        // valueToSubmit remains the original trimmed input.
+                        // The backend (code.ts) will handle parsing this.
                     }
+                } else if (numericPropertyTypes.includes(currentPropertyType)) {
+                    // For other numeric types (e.g., padding, gap, border radius)
+                    const evaluatedValue = evaluateMathematicalExpression(valueToSubmit);
+                    if (evaluatedValue !== null && typeof evaluatedValue === 'number') {
+                        valueToSubmit = String(evaluatedValue);
+                    }
+                    // If not a valid math expression, valueToSubmit remains the original trimmed input.
                 }
+                // For non-numeric types, or if no specific handling matched,
+                // valueToSubmit is the original trimmed input.
                 parent.postMessage({
                     pluginMessage: {
                         type: 'submit-value',
@@ -464,7 +476,44 @@
                 }
                 break;
               case "setHeight":
-                if ("resize" in node && "height" in node) {
+                let handledHeightByHugFill = false;
+                if (typeof value === "string") {
+                  const lowerValue = value.toLowerCase();
+                  if (lowerValue === "hug") {
+                    if (node.type === "TEXT") {
+                      const textNode = node;
+                      const parentIsAutoLayout = textNode.parent && textNode.parent.type === "FRAME" && textNode.parent.layoutMode !== "NONE";
+                      if (parentIsAutoLayout && "layoutSizingVertical" in textNode) {
+                        textNode.layoutSizingVertical = "HUG";
+                      } else {
+                        await loadFontsForNodes([textNode]);
+                        textNode.textAutoResize = "HEIGHT";
+                      }
+                      modifiedCount++;
+                      notifyMessage = `Height set to Hug Contents`;
+                      handledHeightByHugFill = true;
+                    } else if ("layoutSizingVertical" in node && (node.type === "FRAME" || node.type === "COMPONENT" || node.type === "INSTANCE" || node.type === "COMPONENT_SET")) {
+                      node.layoutSizingVertical = "HUG";
+                      modifiedCount++;
+                      notifyMessage = `Height set to Hug Contents`;
+                      handledHeightByHugFill = true;
+                    }
+                  } else if (lowerValue === "fill") {
+                    if ("layoutSizingVertical" in node && (node.type === "FRAME" || node.type === "COMPONENT" || node.type === "INSTANCE" || node.type === "COMPONENT_SET" || node.type === "TEXT")) {
+                      const operableNode = node;
+                      if (operableNode.parent && operableNode.parent.type === "FRAME" && operableNode.parent.layoutMode !== "NONE") {
+                        operableNode.layoutSizingVertical = "FILL";
+                        modifiedCount++;
+                        notifyMessage = `Height set to Fill Container`;
+                        handledHeightByHugFill = true;
+                      } else {
+                        figma.notify(`"${operableNode.name}" cannot be set to Fill Height as its parent is not an Auto Layout frame.`, { error: true, timeout: 3e3 });
+                        handledHeightByHugFill = true;
+                      }
+                    }
+                  }
+                }
+                if (!handledHeightByHugFill && "resize" in node && "height" in node) {
                   let finalHeight = null;
                   if (typeof value === "string" && value.includes("%")) {
                     finalHeight = calculateSizeFromPercentageString(node, "height", value);
@@ -479,17 +528,56 @@
                     node.resize(node.width, finalHeight);
                     modifiedCount++;
                     notifyMessage = `Height set to ${parseFloat(finalHeight.toFixed(2))}`;
-                  } else if (finalHeight === null) {
-                    if (!(typeof value === "string" && value.includes("%"))) {
-                      figma.notify("Invalid height value.", { error: true });
-                    }
+                  } else {
+                    figma.notify("Invalid height value.", { error: true });
                     figma.closePlugin();
                     return;
+                  }
+                } else if (!handledHeightByHugFill && !("resize" in node && "height" in node)) {
+                  if (typeof value === "string" && (value.toLowerCase() === "hug" || value.toLowerCase() === "fill")) {
+                    figma.notify(`"${value}" is not applicable to "${node.name}".`, { error: true, timeout: 3e3 });
                   }
                 }
                 break;
               case "setWidth":
-                if ("resize" in node && "width" in node) {
+                let handledWidthByHugFill = false;
+                if (typeof value === "string") {
+                  const lowerValue = value.toLowerCase();
+                  if (lowerValue === "hug") {
+                    if (node.type === "TEXT") {
+                      const textNode = node;
+                      const parentIsAutoLayout = textNode.parent && textNode.parent.type === "FRAME" && textNode.parent.layoutMode !== "NONE";
+                      if (parentIsAutoLayout && "layoutSizingHorizontal" in textNode) {
+                        textNode.layoutSizingHorizontal = "HUG";
+                      } else {
+                        await loadFontsForNodes([textNode]);
+                        textNode.textAutoResize = "WIDTH_AND_HEIGHT";
+                      }
+                      modifiedCount++;
+                      notifyMessage = `Width set to Hug Contents`;
+                      handledWidthByHugFill = true;
+                    } else if ("layoutSizingHorizontal" in node && (node.type === "FRAME" || node.type === "COMPONENT" || node.type === "INSTANCE" || node.type === "COMPONENT_SET")) {
+                      node.layoutSizingHorizontal = "HUG";
+                      modifiedCount++;
+                      notifyMessage = `Width set to Hug Contents`;
+                      handledWidthByHugFill = true;
+                    }
+                  } else if (lowerValue === "fill") {
+                    if ("layoutSizingHorizontal" in node && (node.type === "FRAME" || node.type === "COMPONENT" || node.type === "INSTANCE" || node.type === "COMPONENT_SET" || node.type === "TEXT")) {
+                      const operableNode = node;
+                      if (operableNode.parent && operableNode.parent.type === "FRAME" && operableNode.parent.layoutMode !== "NONE") {
+                        operableNode.layoutSizingHorizontal = "FILL";
+                        modifiedCount++;
+                        notifyMessage = `Width set to Fill Container`;
+                        handledWidthByHugFill = true;
+                      } else {
+                        figma.notify(`"${operableNode.name}" cannot be set to Fill Width as its parent is not an Auto Layout frame.`, { error: true, timeout: 3e3 });
+                        handledWidthByHugFill = true;
+                      }
+                    }
+                  }
+                }
+                if (!handledWidthByHugFill && "resize" in node && "width" in node) {
                   let finalWidth = null;
                   if (typeof value === "string" && value.includes("%")) {
                     finalWidth = calculateSizeFromPercentageString(node, "width", value);
@@ -504,12 +592,14 @@
                     node.resize(finalWidth, node.height);
                     modifiedCount++;
                     notifyMessage = `Width set to ${parseFloat(finalWidth.toFixed(2))}`;
-                  } else if (finalWidth === null) {
-                    if (!(typeof value === "string" && value.includes("%"))) {
-                      figma.notify("Invalid width value.", { error: true });
-                    }
+                  } else {
+                    figma.notify("Invalid width value.", { error: true });
                     figma.closePlugin();
                     return;
+                  }
+                } else if (!handledWidthByHugFill && !("resize" in node && "width" in node)) {
+                  if (typeof value === "string" && (value.toLowerCase() === "hug" || value.toLowerCase() === "fill")) {
+                    figma.notify(`"${value}" is not applicable to "${node.name}".`, { error: true, timeout: 3e3 });
                   }
                 }
                 break;

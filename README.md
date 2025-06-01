@@ -19,7 +19,7 @@ This plugin allows you to quickly adjust:
 *   `h.h - Set Height to Hug`
 *   `w.f - Set Width to Fill`
 *   `h.f - Set Height to Fill`
-*   `w.. - Set Width` (prompts for custom value)
+*   `w.. - Set Width`  (prompts for custom value)
 *   `h.. - Set Height` (prompts for custom value)
 
 ### Padding

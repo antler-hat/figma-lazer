@@ -432,7 +432,45 @@ figma.ui.onmessage = async msg => { // Made async
               }
               break;
             case 'setHeight': // Height
-              if ('resize' in node && 'height' in node) {
+              let handledHeightByHugFill = false;
+              if (typeof value === 'string') {
+                const lowerValue = value.toLowerCase();
+                if (lowerValue === 'hug') {
+                  if (node.type === 'TEXT') {
+                    const textNode = node as TextNode;
+                    const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as FrameNode).layoutMode !== 'NONE';
+                    if (parentIsAutoLayout && 'layoutSizingVertical' in textNode) {
+                      textNode.layoutSizingVertical = 'HUG';
+                    } else {
+                      await loadFontsForNodes([textNode]);
+                      textNode.textAutoResize = 'HEIGHT';
+                    }
+                    modifiedCount++;
+                    notifyMessage = `Height set to Hug Contents`;
+                    handledHeightByHugFill = true;
+                  } else if ('layoutSizingVertical' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET')) {
+                    (node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode).layoutSizingVertical = 'HUG';
+                    modifiedCount++;
+                    notifyMessage = `Height set to Hug Contents`;
+                    handledHeightByHugFill = true;
+                  }
+                } else if (lowerValue === 'fill') {
+                  if ('layoutSizingVertical' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET' || node.type === 'TEXT')) {
+                    const operableNode = node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode;
+                    if (operableNode.parent && operableNode.parent.type === 'FRAME' && (operableNode.parent as FrameNode).layoutMode !== 'NONE') {
+                      operableNode.layoutSizingVertical = 'FILL';
+                      modifiedCount++;
+                      notifyMessage = `Height set to Fill Container`;
+                      handledHeightByHugFill = true;
+                    } else {
+                      figma.notify(`"${operableNode.name}" cannot be set to Fill Height as its parent is not an Auto Layout frame.`, { error: true, timeout: 3000 });
+                      handledHeightByHugFill = true; // Mark as handled to prevent falling into numeric parsing
+                    }
+                  }
+                }
+              }
+
+              if (!handledHeightByHugFill && 'resize' in node && 'height' in node) {
                 let finalHeight: number | null = null;
                 if (typeof value === 'string' && value.includes('%')) {
                   finalHeight = calculateSizeFromPercentageString(node, 'height', value);
@@ -444,22 +482,65 @@ figma.ui.onmessage = async msg => { // Made async
                 }
 
                 if (finalHeight !== null && finalHeight >= 0) {
-                  if ('layoutSizingVertical' in node) (node as FrameNode).layoutSizingVertical = 'FIXED';
+                  if ('layoutSizingVertical' in node) (node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode).layoutSizingVertical = 'FIXED';
                   (node as SceneNode & { resize: (width: number, height: number) => void }).resize(node.width, finalHeight);
                   modifiedCount++;
-                  notifyMessage = `Height set to ${parseFloat(finalHeight.toFixed(2))}`; // Show rounded for notification
-                } else if (finalHeight === null) {
-                  // Error already notified by calculateSizeFromPercentageString or it's an invalid float
-                  if (!(typeof value === 'string' && value.includes('%'))) { // only notify if not already handled
-                     figma.notify("Invalid height value.", { error: true });
-                  }
+                  notifyMessage = `Height set to ${parseFloat(finalHeight.toFixed(2))}`;
+                } else { // finalHeight is null or negative
+                  // This means value was not 'hug', 'fill', a valid '%', or a valid number.
+                  figma.notify("Invalid height value.", { error: true });
                   figma.closePlugin();
                   return;
+                }
+              } else if (!handledHeightByHugFill && !('resize' in node && 'height' in node)) {
+                // If not handled by hug/fill and node doesn't have resize/height (e.g. Group), but user typed a number.
+                // This case is unlikely if the command is 'setHeight' as it's filtered before showing UI.
+                // However, if "hug" or "fill" was typed for an inapplicable node type that didn't get caught by specific checks.
+                if (typeof value === 'string' && (value.toLowerCase() === 'hug' || value.toLowerCase() === 'fill')) {
+                    figma.notify(`"${value}" is not applicable to "${node.name}".`, { error: true, timeout: 3000 });
                 }
               }
               break;
             case 'setWidth': // Width
-              if ('resize' in node && 'width' in node) {
+              let handledWidthByHugFill = false;
+              if (typeof value === 'string') {
+                const lowerValue = value.toLowerCase();
+                if (lowerValue === 'hug') {
+                  if (node.type === 'TEXT') {
+                    const textNode = node as TextNode;
+                    const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as FrameNode).layoutMode !== 'NONE';
+                    if (parentIsAutoLayout && 'layoutSizingHorizontal' in textNode) {
+                      textNode.layoutSizingHorizontal = 'HUG';
+                    } else {
+                      await loadFontsForNodes([textNode]);
+                      textNode.textAutoResize = 'WIDTH_AND_HEIGHT';
+                    }
+                    modifiedCount++;
+                    notifyMessage = `Width set to Hug Contents`;
+                    handledWidthByHugFill = true;
+                  } else if ('layoutSizingHorizontal' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET')) {
+                    (node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode).layoutSizingHorizontal = 'HUG';
+                    modifiedCount++;
+                    notifyMessage = `Width set to Hug Contents`;
+                    handledWidthByHugFill = true;
+                  }
+                } else if (lowerValue === 'fill') {
+                  if ('layoutSizingHorizontal' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET' || node.type === 'TEXT')) {
+                    const operableNode = node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode;
+                    if (operableNode.parent && operableNode.parent.type === 'FRAME' && (operableNode.parent as FrameNode).layoutMode !== 'NONE') {
+                      operableNode.layoutSizingHorizontal = 'FILL';
+                      modifiedCount++;
+                      notifyMessage = `Width set to Fill Container`;
+                      handledWidthByHugFill = true;
+                    } else {
+                      figma.notify(`"${operableNode.name}" cannot be set to Fill Width as its parent is not an Auto Layout frame.`, { error: true, timeout: 3000 });
+                      handledWidthByHugFill = true; // Mark as handled
+                    }
+                  }
+                }
+              }
+
+              if (!handledWidthByHugFill && 'resize' in node && 'width' in node) {
                 let finalWidth: number | null = null;
                 if (typeof value === 'string' && value.includes('%')) {
                   finalWidth = calculateSizeFromPercentageString(node, 'width', value);
@@ -471,17 +552,18 @@ figma.ui.onmessage = async msg => { // Made async
                 }
 
                 if (finalWidth !== null && finalWidth >= 0) {
-                  if ('layoutSizingHorizontal' in node) (node as FrameNode).layoutSizingHorizontal = 'FIXED';
+                  if ('layoutSizingHorizontal' in node) (node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode).layoutSizingHorizontal = 'FIXED';
                   (node as SceneNode & { resize: (width: number, height: number) => void }).resize(finalWidth, node.height);
                   modifiedCount++;
-                  notifyMessage = `Width set to ${parseFloat(finalWidth.toFixed(2))}`; // Show rounded for notification
-                } else if (finalWidth === null) {
-                  // Error already notified by calculateSizeFromPercentageString or it's an invalid float
-                   if (!(typeof value === 'string' && value.includes('%'))) { // only notify if not already handled
-                      figma.notify("Invalid width value.", { error: true });
-                   }
+                  notifyMessage = `Width set to ${parseFloat(finalWidth.toFixed(2))}`;
+                } else { // finalWidth is null or negative
+                  figma.notify("Invalid width value.", { error: true });
                   figma.closePlugin();
                   return;
+                }
+              } else if (!handledWidthByHugFill && !('resize' in node && 'width' in node)) {
+                 if (typeof value === 'string' && (value.toLowerCase() === 'hug' || value.toLowerCase() === 'fill')) {
+                    figma.notify(`"${value}" is not applicable to "${node.name}".`, { error: true, timeout: 3000 });
                 }
               }
               break;
