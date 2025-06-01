@@ -19,7 +19,7 @@ This plugin allows you to quickly adjust:
 *   `h.h - Set Height to Hug`
 *   `w.f - Set Width to Fill`
 *   `h.f - Set Height to Fill`
-*   `w.. - Set Width` (prompts for custom value)
+*   `w.. - Set Width`  (prompts for custom value)
 *   `h.. - Set Height` (prompts for custom value)
 
 ### Padding
@@ -49,6 +49,10 @@ This plugin allows you to quickly adjust:
 *   `f.1 - Add Default Fill`
 *   `f.0 - Remove All Fills`
 *   `f.. - Set Fill Colour` (prompts for custom value)
+
+### Text
+*   `ls.. - Set Text Letter Spacing` (prompts for custom value)
+*   `t.s - Set Text Size` (prompts for custom value)
 
 ## Usage
 
