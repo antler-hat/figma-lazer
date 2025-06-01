@@ -130,6 +130,40 @@
                 event.preventDefault();
                 parent.postMessage({ pluginMessage: { type: 'close-plugin' } }, '*');
             }
+            // REVISED CODE BLOCK for ArrowUp/ArrowDown
+            else if (numericPropertyTypes.includes(currentPropertyType) && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+                event.preventDefault(); // Prevent default browser actions like cursor movement or page scroll
+
+                const rawValue = inputField.value;
+                let numericValue = parseFloat(rawValue); // Attempt direct parse
+
+                // If direct parsing results in NaN, try evaluating as a mathematical expression
+                if (isNaN(numericValue)) {
+                    const evaluatedResult = evaluateMathematicalExpression(rawValue);
+                    // Check if evaluation resulted in a valid, finite number
+                    if (evaluatedResult !== null && typeof evaluatedResult === 'number' && isFinite(evaluatedResult)) {
+                        numericValue = evaluatedResult;
+                    }
+                }
+
+                // Only proceed with increment/decrement if we have a valid, finite number
+                if (typeof numericValue === 'number' && isFinite(numericValue)) {
+                    const step = event.shiftKey ? 10 : 1; // Determine step based on Shift key
+
+                    if (event.key === 'ArrowUp') {
+                        numericValue += step;
+                    } else { // ArrowDown
+                        numericValue -= step;
+                    }
+                    inputField.value = String(numericValue); // Update the input field
+
+                    // Optional: select the text after changing it for easy further editing or submission
+                    // inputField.select();
+                }
+                // If 'numericValue' is still not a valid number at this point (i.e., it's NaN),
+                // no increment/decrement action is taken.
+            }
+            // END OF REVISED CODE BLOCK
         });
 
         // Optional: Close if user clicks outside the input/dialog area (might be tricky to implement robustly without more structure)
