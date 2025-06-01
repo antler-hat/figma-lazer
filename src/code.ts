@@ -1305,7 +1305,7 @@ if (figma.command === 'aa') {
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setTextSize', title: 'Set Font Size (e.g., 16)', currentValue: commonFontSize });
     }
   }
-} else if (figma.command === 't.ls') { // Renamed from 'ls..' to 't.ls' to match manifest
+} else if (figma.command === 'ls..') {
   const selection = figma.currentPage.selection;
   if (selection.length === 0) {
     figma.notify("Please select at least one text layer.", { error: true });
