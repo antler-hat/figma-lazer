@@ -24,6 +24,7 @@
             gap: 30px;
             flex-grow: 1;
             overflow-y: auto;
+            outline: none; /* Remove visual focus indicator */
         }
 
         .column {
@@ -142,39 +143,28 @@
     </div>
 
     <script>
-        const closeButton = document.getElementById('close-button');
         const contentArea = document.querySelector('.content-area');
 
         function closeDialog() {
             parent.postMessage({ pluginMessage: { type: 'close-plugin' } }, '*');
         }
-
-        closeButton.addEventListener('click', closeDialog);
         
         // Focus the content area so it can receive keydown events
         contentArea.focus();
 
+        // Listener for when the content area itself has focus
         contentArea.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' || event.key === 'Enter') {
-                event.preventDefault();
+                event.preventDefault(); // Prevent default browser action
                 closeDialog();
             }
         });
         
-        // Also listen on window for escape/enter in case focus is lost from contentArea
-        // though ideally it shouldn't be.
+        // Fallback listener on the window, in case focus is lost from contentArea
+        // This will ensure Esc/Enter always closes the dialog.
         window.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' || event.key === 'Enter') {
-                // Check if the event target is an input or button, if so, let them handle Enter.
-                // For this dialog, there are no other inputs, so this is less critical.
-                if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'BUTTON') && event.key === 'Enter') {
-                    if (document.activeElement === closeButton && event.key === 'Enter') {
-                         // Allow enter on close button to trigger its click (which calls closeDialog)
-                    } else {
-                        return; 
-                    }
-                }
-                event.preventDefault();
+                event.preventDefault(); // Prevent default browser action
                 closeDialog();
             }
         });
