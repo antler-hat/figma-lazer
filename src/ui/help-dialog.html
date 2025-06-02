@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lazer Commands</title>
+    <style>
+        body {
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, "system-ui", "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, SFProLocalRange;
+            margin: 0;
+            padding: 15px;
+            box-sizing: border-box;
+            background-color: var(--figma-color-bg);
+            color: var(--figma-color-text);
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .content-area {
+            display: flex;
+            width: 100%;
+            gap: 30px;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .column {
+            flex-grow:1;
+        }
+
+        .category {
+            margin-bottom: 15px;
+        }
+
+        .category h2 {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--figma-color-text);
+            margin-top: 0;
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--figma-color-border);
+            padding-bottom: 4px;
+        }
+
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        li {
+            margin-bottom: 6px;
+            line-height: 1.4;
+            color: var(--figma-color-text-secondary);
+        }
+
+        li code {
+            background-color: var(--figma-color-bg-secondary);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            color: var(--figma-color-text);
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>  
+    <div class="content-area" tabindex="0"> <!-- Make content area focusable for keyboard events -->
+        <div class="column">
+            <div class="category">
+                <h2>Width & Height</h2>
+                <ul>
+                    <li><code>w.h</code> - Set Width to Hug</li>
+                    <li><code>h.h</code> - Set Height to Hug</li>
+                    <li><code>w.f</code> - Set Width to Fill</li>
+                    <li><code>h.f</code> - Set Height to Fill</li>
+                    <li><code>w..</code> - Set Width (prompts for custom value)</li>
+                    <li><code>h..</code> - Set Height (prompts for custom value)</li>
+                </ul>
+            </div>
+
+            <div class="category">
+                <h2>Padding</h2>
+                <ul>
+                    <li><code>p.0</code> - Set All Padding to 0</li>
+                    <li><code>p.16</code> - Set All Padding to 16</li>
+                    <li><code>p..</code> - Set Padding (prompts for custom value)</li>
+                </ul>
+            </div>
+            <div class="category">
+                <h2>Auto Layout</h2>
+                <ul>
+                    <li><code>al..</code> - Set Auto Layout Alignment (opens alignment UI)</li>
+                    <li><code>al.v</code> - Set Auto Layout to Vertical</li>
+                    <li><code>al.h</code> - Set Auto Layout to Horizontal</li>
+                    <li><code>g.0</code> - Set Gap to 0</li>
+                    <li><code>g.8</code> - Set Gap to 8</li>
+                    <li><code>g.16</code> - Set Gap to 16</li>
+                    <li><code>g..</code> - Set Gap (prompts for custom value)</li>
+                </ul>
+            </div>
+        </div>
+        <div class="column">
+            <div class="category">
+                <h2>Border Radius</h2>
+                <ul>
+                    <li><code>br.0</code> - Set Border Radius to 0px</li>
+                    <li><code>br.8</code> - Set Border Radius to 8px</li>
+                    <li><code>br..</code> - Set Border Radius (prompts for custom value)</li>
+                </ul>
+            </div>
+
+            <div class="category">
+                <h2>Stroke</h2>
+                <ul>
+                    <li><code>s.0</code> - Set Stroke Width to 0</li>
+                    <li><code>s.1</code> - Set Stroke Width to 1</li>
+                    <li><code>sw..</code> - Set Stroke Width (prompts for custom value)</li>
+                    <li><code>sc..</code> - Set Stroke Colour (prompts for custom value)</li>
+                </ul>
+            </div>
+
+            <div class="category">
+                <h2>Fill</h2>
+                <ul>
+                    <li><code>f.w</code> - Add White Fill</li>
+                    <li><code>f.0</code> - Remove All Fills</li>
+                    <li><code>f..</code> - Set Fill Colour (prompts for custom value)</li>
+                </ul>
+            </div>
+
+            <div class="category">
+                <h2>Text</h2>
+                <ul>
+                    <li><code>ls..</code> - Set Text Letter Spacing (prompts for custom value)</li>
+                    <li><code>t.s</code> - Set Text Size (prompts for custom value)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const closeButton = document.getElementById('close-button');
+        const contentArea = document.querySelector('.content-area');
+
+        function closeDialog() {
+            parent.postMessage({ pluginMessage: { type: 'close-plugin' } }, '*');
+        }
+
+        closeButton.addEventListener('click', closeDialog);
+        
+        // Focus the content area so it can receive keydown events
+        contentArea.focus();
+
+        contentArea.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' || event.key === 'Enter') {
+                event.preventDefault();
+                closeDialog();
+            }
+        });
+        
+        // Also listen on window for escape/enter in case focus is lost from contentArea
+        // though ideally it shouldn't be.
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' || event.key === 'Enter') {
+                // Check if the event target is an input or button, if so, let them handle Enter.
+                // For this dialog, there are no other inputs, so this is less critical.
+                if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'BUTTON') && event.key === 'Enter') {
+                    if (document.activeElement === closeButton && event.key === 'Enter') {
+                         // Allow enter on close button to trigger its click (which calls closeDialog)
+                    } else {
+                        return; 
+                    }
+                }
+                event.preventDefault();
+                closeDialog();
+            }
+        });
+
+    </script>
+</body>
+</html>

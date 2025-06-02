@@ -56,6 +56,9 @@ This plugin allows you to quickly adjust:
 *   `ls.. - Set Text Letter Spacing` (prompts for custom value)
 *   `t.s - Set Text Size` (prompts for custom value)
 
+### General
+*   `help.. - Show Commands and Shortcuts` (displays this list in a popup)
+
 ## Usage
 
 1.  Select one or more layers in your Figma file.

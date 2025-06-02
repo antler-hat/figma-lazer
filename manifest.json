@@ -8,6 +8,10 @@
   "editorType": ["figma"],
   "menu": [
     {
+      "name": "help.. - Show Commands and Shortcuts",
+      "command": "help"
+    },
+    {
       "name": "w.h - Set Width to Hug",
       "command": "widthHug"
     },
@@ -80,35 +84,35 @@
       "command": "gap16"
     },
     {
-      "name": "p..: Set Padding",
+      "name": "p.. - Set Padding",
       "command": "setPadding"
     },
     {
-      "name": "h..: Set Height",
+      "name": "h.. - Set Height",
       "command": "setHeight"
     },
     {
-      "name": "w..: Set Width",
+      "name": "w.. - Set Width",
       "command": "setWidth"
     },
     {
-      "name": "br..: Set Border Radius",
+      "name": "br.. - Set Border Radius",
       "command": "setBorderRadius"
     },
     {
-      "name": "sw..: Set Stroke Width",
+      "name": "sw.. - Set Stroke Width",
       "command": "setStrokeWidth"
     },
     {
-      "name": "sc..: Set Stroke Colour",
+      "name": "sc.. - Set Stroke Colour",
       "command": "setStrokeColour"
     },
     {
-      "name": "f..: Set Fill Colour",
+      "name": "f.. - Set Fill Colour",
       "command": "setFillColour"
     },
     {
-      "name": "g..: Set Gap",
+      "name": "g.. - Set Gap",
       "command": "setGap"
     },
     {
@@ -120,5 +124,9 @@
       "command": "textSize"
     }
   ],
-  "ui": "dist/auto-alignment-control.html"
+  "ui": {
+    "inputDialog": "src/ui/input-dialog.html",
+    "autoAlignmentControl": "src/ui/auto-alignment-control.html",
+    "helpDialog": "src/ui/help-dialog.html"
+  }
 }

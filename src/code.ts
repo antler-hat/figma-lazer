@@ -4,6 +4,8 @@
 console.log('Figma command:', figma.command);
 
 import inputDialogHtmlContent from './ui/input-dialog.html';
+import autoAlignmentControlHtmlContent from './ui/auto-alignment-control.html';
+import helpDialogHtmlContent from './ui/help-dialog.html';
 
 // --- START TYPE ALIASES ---
 type ApplicableNode = FrameNode | ComponentNode | ComponentSetNode | InstanceNode | TextNode | RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode;
@@ -1132,7 +1134,7 @@ const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Pro
 // --- END NEW COMMAND HANDLERS & DISPATCHER ---
 
 if (figma.command === 'setAutolayout') {
-  figma.showUI(__html__, { width: 180, height: 180, themeColors: true });
+  figma.showUI(autoAlignmentControlHtmlContent, { width: 180, height: 180, themeColors: true });
   sendCurrentStateToUIForAA(); // Initial state for AA UI
   figma.on('selectionchange', () => {
     if (figma.command === 'setAutolayout') { // Only if AA is the active command context
@@ -1140,6 +1142,9 @@ if (figma.command === 'setAutolayout') {
     }
   });
   // figma.ui.onmessage is now global
+} else if (figma.command === 'help') {
+  figma.showUI(helpDialogHtmlContent, { width: 800, height: 600, themeColors: true , title: "Lazer Commands" });
+  // The help dialog will send 'close-plugin' on Esc/Enter/Close button click
 } else if (commandHandlers[figma.command]) {
   const selection = figma.currentPage.selection;
   // Most handlers in commandHandlers already call ensureSelection or don't need selection.
