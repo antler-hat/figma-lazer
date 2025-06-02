@@ -1,11 +1,11 @@
 {
   "name": "figma-lazer",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "main": "dist/code.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "mkdir -p dist && esbuild src/code.ts --bundle --outfile=dist/code.js --platform=browser --loader:.html=text && cp src/ui/auto-alignment-control.html dist/auto-alignment-control.html",
-    "watch": "esbuild src/code.ts --bundle --outfile=dist/code.js --platform=browser --loader:.html=text --watch --sourcemap && cp src/ui/auto-alignment-control.html dist/auto-alignment-control.html"
+    "build": "mkdir -p dist && esbuild src/code.ts --bundle --outfile=dist/code.js --platform=browser --loader:.html=text",
+    "watch": "esbuild src/code.ts --bundle --outfile=dist/code.js --platform=browser --loader:.html=text --watch --sourcemap"
   },
   "keywords": [],
   "author": "",

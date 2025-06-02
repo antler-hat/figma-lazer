@@ -8,60 +8,64 @@
   "editorType": ["figma"],
   "menu": [
     {
+      "name": "help.. - Show Commands and Shortcuts",
+      "command": "help"
+    },
+    {
       "name": "w.h - Set Width to Hug",
-      "command": "wh"
+      "command": "widthHug"
     },
     {
       "name": "h.h - Set Height to Hug",
-      "command": "hh"
+      "command": "heightHug"
     },
     {
       "name": "w.f - Set Width to Fill",
-      "command": "wf"
+      "command": "widthFill"
     },
     {
       "name": "h.f - Set Height to Fill",
-      "command": "hf"
+      "command": "heightFill"
     },
     {
       "name": "p.0 - Set All Padding to 0",
-      "command": "p0"
+      "command": "padding0"
     },
     {
       "name": "p.16 - Set All Padding to 16",
-      "command": "p16"
+      "command": "padding16"
     },
     {
       "name": "al.. - Set Auto Layout Alignment",
-      "command": "al.."
+      "command": "setAutolayout"
     },
     {
-      "name": "al.h - Set Autolayout to Horizontal",
-      "command": "al.h"
+      "name": "al.h - Set Auto Layout to Horizontal",
+      "command": "aLayoutHorizontal"
     },
     {
-      "name": "al.v - Set Autolayout to Vertical",
-      "command": "al.v"
+      "name": "al.v - Set Auto Layout to Vertical",
+      "command": "aLayoutVertical"
     },
     {
       "name": "br.8 - Set Border Radius to 8px",
-      "command": "br8"
+      "command": "borderRadius8"
     },
     {
       "name": "br.0 - Set Border Radius to 0px",
-      "command": "br0"
+      "command": "borderRadius0"
     },
     {
       "name": "s.1 - Set Stroke to 1",
-      "command": "s1"
+      "command": "stroke1"
     },
     {
       "name": "s.0 - Set Stroke to 0",
-      "command": "s0"
+      "command": "stroke0"
     },
     {
       "name": "f.w - Add White Fill",
-      "command": "fillwhite"
+      "command": "fillWhite"
     },
     {
       "name": "f.0 - Remove All Fills",
@@ -80,45 +84,49 @@
       "command": "gap16"
     },
     {
-      "name": "p..: Set Padding",
+      "name": "p.. - Set Padding",
       "command": "setPadding"
     },
     {
-      "name": "h..: Set Height",
+      "name": "h.. - Set Height",
       "command": "setHeight"
     },
     {
-      "name": "w..: Set Width",
+      "name": "w.. - Set Width",
       "command": "setWidth"
     },
     {
-      "name": "br..: Set Border Radius",
+      "name": "br.. - Set Border Radius",
       "command": "setBorderRadius"
     },
     {
-      "name": "sw..: Set Stroke Width",
+      "name": "sw.. - Set Stroke Width",
       "command": "setStrokeWidth"
     },
     {
-      "name": "sc..: Set Stroke Colour",
+      "name": "sc.. - Set Stroke Colour",
       "command": "setStrokeColour"
     },
     {
-      "name": "f..: Set Fill Colour",
+      "name": "f.. - Set Fill Colour",
       "command": "setFillColour"
     },
     {
-      "name": "g..: Set Gap",
+      "name": "g.. - Set Gap",
       "command": "setGap"
     },
     {
       "name": "ls.. - Set Text Letter Spacing",
-      "command": "ls.."
+      "command": "lineSpacing"
     },
     {
       "name": "t.s - Set Text Size",
-      "command": "t.s"
+      "command": "textSize"
     }
   ],
-  "ui": "dist/auto-alignment-control.html"
+  "ui": {
+    "inputDialog": "src/ui/input-dialog.html",
+    "autoAlignmentControl": "src/ui/auto-alignment-control.html",
+    "helpDialog": "src/ui/help-dialog.html"
+  }
 }

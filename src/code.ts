@@ -4,6 +4,8 @@
 console.log('Figma command:', figma.command);
 
 import inputDialogHtmlContent from './ui/input-dialog.html';
+import autoAlignmentControlHtmlContent from './ui/auto-alignment-control.html';
+import helpDialogHtmlContent from './ui/help-dialog.html';
 
 // --- START TYPE ALIASES ---
 type ApplicableNode = FrameNode | ComponentNode | ComponentSetNode | InstanceNode | TextNode | RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode;
@@ -693,7 +695,7 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
 
 // --- START UI MESSAGE SUB-HANDLERS for Auto-Alignment (AA) ---
 function handleSetAlignmentAA(msg: any, selection: readonly SceneNode[]) {
-  if (figma.command !== 'al..') return;
+  if (figma.command !== 'setAutolayout') return;
   const [uiPrimary, uiCounter] = alignmentMap[msg.index];
   for (const node of selection) {
     if (isValidAutoLayoutNode(node)) {
@@ -722,7 +724,7 @@ function handleSetAlignmentAA(msg: any, selection: readonly SceneNode[]) {
 }
 
 function handleToggleDistributionAA(selection: readonly SceneNode[]) {
-  if (figma.command !== 'al..') return;
+  if (figma.command !== 'setAutolayout') return;
   pluginIsDistributeModeActive = !pluginIsDistributeModeActive;
   for (const node of selection) {
     if (isValidAutoLayoutNode(node)) {
@@ -739,13 +741,13 @@ function handleToggleDistributionAA(selection: readonly SceneNode[]) {
 }
 
 function handleGetInitialVisibilityAA() {
-  if (figma.command === 'al..') {
+  if (figma.command === 'setAutolayout') {
     sendCurrentStateToUIForAA();
   }
 }
 
 function handleSetLayoutDirectionAA(msg: any, selection: readonly SceneNode[]) {
-  if (figma.command !== 'al..') return;
+  if (figma.command !== 'setAutolayout') return;
   const direction = msg.direction as 'HORIZONTAL' | 'VERTICAL';
   if (direction) {
     let changedCount = 0;
@@ -1110,36 +1112,39 @@ function setAutoLayoutDirection(direction: 'HORIZONTAL' | 'VERTICAL', selection:
 
 
 const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Promise<void> | void } = {
-  'wh': handleWidthHug,
-  'hh': handleHeightHug,
-  'wf': handleWidthFill,
-  'hf': handleHeightFill,
-  'p0': (sel) => setPaddingForSelection(0, sel),
-  'p16': (sel) => setPaddingForSelection(16, sel),
-  'br0': (sel) => setBorderRadiusForSelection(0, sel),
-  'br8': (sel) => setBorderRadiusForSelection(8, sel),
-  's0': (sel) => setStrokeWeightForSelection(0, sel),
-  's1': (sel) => setStrokeWeightForSelection(1, sel),
+  'widthHug': handleWidthHug,
+  'heightHug': handleHeightHug,
+  'widthFill': handleWidthFill,
+  'heightFill': handleHeightFill,
+  'padding0': (sel) => setPaddingForSelection(0, sel),
+  'padding16': (sel) => setPaddingForSelection(16, sel),
+  'borderRadius0': (sel) => setBorderRadiusForSelection(0, sel),
+  'borderRadius8': (sel) => setBorderRadiusForSelection(8, sel),
+  'stroke0': (sel) => setStrokeWeightForSelection(0, sel),
+  'stroke1': (sel) => setStrokeWeightForSelection(1, sel),
   'fill0': handleFillRemoveAll,
-  'fillwhite': handleFillDefault,
+  'fillWhite': handleFillDefault,
   'gap0': (sel) => setGapForSelection(0, sel),
   'gap8': (sel) => setGapForSelection(8, sel),
   'gap16': (sel) => setGapForSelection(16, sel),
-  'al.h': (sel) => setAutoLayoutDirection('HORIZONTAL', sel),
-  'al.v': (sel) => setAutoLayoutDirection('VERTICAL', sel),
+  'aLayoutHorizontal': (sel) => setAutoLayoutDirection('HORIZONTAL', sel),
+  'aLayoutVertical': (sel) => setAutoLayoutDirection('VERTICAL', sel),
 };
 
 // --- END NEW COMMAND HANDLERS & DISPATCHER ---
 
-if (figma.command === 'al..') {
-  figma.showUI(__html__, { width: 180, height: 180, themeColors: true });
+if (figma.command === 'setAutolayout') {
+  figma.showUI(autoAlignmentControlHtmlContent, { width: 180, height: 180, themeColors: true });
   sendCurrentStateToUIForAA(); // Initial state for AA UI
   figma.on('selectionchange', () => {
-    if (figma.command === 'al..') { // Only if AA is the active command context
+    if (figma.command === 'setAutolayout') { // Only if AA is the active command context
         sendCurrentStateToUIForAA();
     }
   });
   // figma.ui.onmessage is now global
+} else if (figma.command === 'help') {
+  figma.showUI(helpDialogHtmlContent, { width: 800, height: 600, themeColors: true , title: "Lazer Commands" });
+  // The help dialog will send 'close-plugin' on Esc/Enter/Close button click
 } else if (commandHandlers[figma.command]) {
   const selection = figma.currentPage.selection;
   // Most handlers in commandHandlers already call ensureSelection or don't need selection.
@@ -1287,7 +1292,7 @@ if (figma.command === 'al..') {
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setGap', title: 'Set Gap (e.g., 8 or 10-2)', currentValue: commonGap });
     }
   }
-} else if (figma.command === 't.s') { // Set Text Size
+} else if (figma.command === 'textSize') { // Set Text Size
   const selection = figma.currentPage.selection;
   if (selection.length === 0) {
     figma.notify("Please select at least one text layer.", { error: true });
@@ -1305,7 +1310,7 @@ if (figma.command === 'al..') {
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setTextSize', title: 'Set Font Size (e.g., 16)', currentValue: commonFontSize });
     }
   }
-} else if (figma.command === 'ls..') {
+} else if (figma.command === 'lineSpacing') {
   const selection = figma.currentPage.selection;
   if (selection.length === 0) {
     figma.notify("Please select at least one text layer.", { error: true });

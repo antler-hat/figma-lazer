@@ -28,7 +28,9 @@ This plugin allows you to quickly adjust:
 *   `p.. - Set Padding` (prompts for custom value)
 
 ### Auto Layout
-*   `aa - Set Auto Layout Alignment` (opens alignment UI)
+*   `al.. - Set Auto Layout Alignment` (opens alignment UI)
+*   `al.v - Set Auto Layout to Vertical`
+*   `al.h - Set Auto Layout to Horizontal`
 *   `g.0 - Set Gap to 0`
 *   `g.8 - Set Gap to 8`
 *   `g.16 - Set Gap to 16`
@@ -46,13 +48,16 @@ This plugin allows you to quickly adjust:
 *   `sc.. - Set Stroke Colour` (prompts for custom value)
 
 ### Fill
-*   `f.1 - Add Default Fill`
+*   `f.w - Add White Fill`
 *   `f.0 - Remove All Fills`
 *   `f.. - Set Fill Colour` (prompts for custom value)
 
 ### Text
 *   `ls.. - Set Text Letter Spacing` (prompts for custom value)
 *   `t.s - Set Text Size` (prompts for custom value)
+
+### General
+*   `help.. - Show Commands and Shortcuts` (displays this list in a popup)
 
 ## Usage
 
