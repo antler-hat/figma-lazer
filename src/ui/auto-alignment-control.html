@@ -43,11 +43,9 @@
             align-items: center;
             cursor: default;
             border-radius: 3px;
-            /* content: ''; */ /* Removed as it's not standard for a div */
             background-color: var(--figma-color-icon-tertiary);
             width: 3px;
             height: 3px;
-            /* display: block; */ /* Flex properties handle this better */
             position: relative; /* For positioning distribution bars */
         }
         .grid-cell.selected {
@@ -72,9 +70,15 @@
         }
         .key {
             display: inline-block;
-            border: 1px solid var(--figma-color-text-secondary);
+            border: 1px solid var(--figma-color-border);
             padding: 3px;
             border-radius: 5px;
+            font-size: 10px;
+            height: 12px;
+            min-width: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         
@@ -91,7 +95,7 @@
         <div id="instructions">
             <span class="key"><—</span>
             <span class="key">—></span>
-            <span class="key">SPACE</span>
+            <span class="key">Space</span>
             <span class="key">H</span>
             <span class="key">V</span>
         </div>
@@ -322,15 +326,30 @@
             }
         };
         
-        // Mapping from Figma alignment properties back to UI index (mirror from code.ts for UI logic)
+        // Mapping from Figma alignment properties back to UI index
+        // Key is always VisualX + VisualY
+        // MINMIN = 0 (Top-Left), CENTERMIN = 1 (Top-Center), MAXMIN = 2 (Top-Right)
+        // MINCENTER = 3 (Mid-Left), CENTERCENTER = 4 (Mid-Center), MAXCENTER = 5 (Mid-Right)
+        // MINMAX = 6 (Bot-Left), CENTERMAX = 7 (Bot-Center), MAXMAX = 8 (Bot-Right)
         const figmaAlignmentMapToIndex = {
             'MINMIN': 0, 'CENTERMIN': 1, 'MAXMIN': 2,
             'MINCENTER': 3, 'CENTERCENTER': 4, 'MAXCENTER': 5,
             'MINMAX': 6, 'CENTERMAX': 7, 'MAXMAX': 8
         };
 
-        function getIndexFromFigmaAlign(primary, counter) {
-            const key = (primary || '').replace('SPACE_BETWEEN', 'CENTER') + (counter || ''); // Treat SPACE_BETWEEN as CENTER for primary for index mapping
+        function getIndexFromFigmaAlign(figmaPrimary, figmaCounter, layoutMode) {
+            let visualX, visualY;
+            // When layoutMode is VERTICAL, Figma's primaryAxis is Y and counterAxis is X.
+            // We want the UI grid's columns (visualX) to map to Figma's X-axis,
+            // and UI grid's rows (visualY) to map to Figma's Y-axis.
+            if (layoutMode === 'VERTICAL') {
+                visualX = (figmaCounter || '').replace('SPACE_BETWEEN', 'CENTER'); // Figma's X-axis
+                visualY = (figmaPrimary || '').replace('SPACE_BETWEEN', 'CENTER'); // Figma's Y-axis
+            } else { // HORIZONTAL or NONE (treat as HORIZONTAL for mapping)
+                visualX = (figmaPrimary || '').replace('SPACE_BETWEEN', 'CENTER');   // Figma's X-axis
+                visualY = (figmaCounter || '').replace('SPACE_BETWEEN', 'CENTER');  // Figma's Y-axis
+            }
+            const key = visualX + visualY;
             return figmaAlignmentMapToIndex[key] !== undefined ? figmaAlignmentMapToIndex[key] : 4; // Default to center
         }
 
@@ -363,7 +382,7 @@
                             else selectedIndex = 4; // Middle-Center
                         }
                     } else {
-                        selectedIndex = getIndexFromFigmaAlign(currentFigmaAlignment.primary, currentFigmaAlignment.counter);
+                        selectedIndex = getIndexFromFigmaAlign(currentFigmaAlignment.primary, currentFigmaAlignment.counter, currentLayoutMode);
                     }
                 } else {
                     gridContainer.style.display = 'none';
