@@ -8,7 +8,7 @@
   "editorType": ["figma"],
   "menu": [
     {
-      "name": "help.. - Show Commands and Shortcuts",
+      "name": "help! - Show Commands and Shortcuts",
       "command": "help"
     },
     {
