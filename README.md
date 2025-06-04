@@ -57,7 +57,7 @@ This plugin allows you to quickly adjust:
 *   `t.s - Set Text Size` (prompts for custom value)
 
 ### General
-*   `help.. - Show Commands and Shortcuts` (displays this list in a popup)
+*   `help! - Show Commands and Shortcuts` (displays this list in a popup)
 
 ## Usage
 
