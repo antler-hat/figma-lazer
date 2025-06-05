@@ -463,7 +463,7 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
             } else if (lowerValue === 'fill') {
               if ('layoutSizingVertical' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET' || node.type === 'TEXT')) {
                 const operableNode = node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode;
-                if (operableNode.parent && operableNode.parent.type === 'FRAME' && (operableNode.parent as FrameNode).layoutMode !== 'NONE') {
+                if (operableNode.parent && isValidAutoLayoutNode(operableNode.parent as SceneNode)) {
                   operableNode.layoutSizingVertical = 'FILL';
                   modifiedCount++;
                   notifyMessage = `Height set to Fill Container`;
@@ -488,10 +488,31 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
             }
 
             if (finalHeight !== null && finalHeight >= 0) {
-              if ('layoutSizingVertical' in node) (node as SizableNode).layoutSizingVertical = 'FIXED'; // Use SizableNode
-              (node as SceneNode & { resize: (width: number, height: number) => void }).resize(node.width, finalHeight);
-              modifiedCount++;
-              notifyMessage = `Height set to ${parseFloat(finalHeight.toFixed(2))}`;
+              if ('layoutSizingVertical' in node) (node as SizableNode).layoutSizingVertical = 'FIXED';
+              
+              const originalWidth = node.width;
+              const originalHeight = node.height; // Current height before this specific change
+
+              const hasLockedAspectRatio = 'targetAspectRatio' in node && (node as any).targetAspectRatio !== null;
+              const isAutoResizeText = node.type === 'TEXT' && (node as TextNode).textAutoResize !== 'NONE';
+              
+              if (hasLockedAspectRatio && !isAutoResizeText) {
+                if (originalHeight === 0) { 
+                  // Cannot determine aspect ratio if original height is 0. Resize with original width.
+                  (node as SceneNode & { resize: (width: number, height: number) => void }).resize(originalWidth, finalHeight);
+                } else {
+                  const aspectRatio = originalWidth / originalHeight;
+                  const newWidth = finalHeight * aspectRatio;
+                  (node as SceneNode & { resize: (width: number, height: number) => void }).resize(newWidth, finalHeight);
+                }
+                modifiedCount++;
+                notifyMessage = `Height set to ${parseFloat(finalHeight.toFixed(2))} (aspect ratio maintained)`;
+              } else {
+                // If not locked or is auto-resize text, resize normally, preserving current width.
+                (node as SceneNode & { resize: (width: number, height: number) => void }).resize(originalWidth, finalHeight);
+                modifiedCount++;
+                notifyMessage = `Height set to ${parseFloat(finalHeight.toFixed(2))}`;
+              }
             } else { // finalHeight is null or negative
               // This means value was not 'hug', 'fill', a valid '%', or a valid number.
               figma.notify("Invalid height value.", { error: true });
@@ -530,7 +551,7 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
             } else if (lowerValue === 'fill') {
               if ('layoutSizingHorizontal' in node && (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET' || node.type === 'TEXT')) {
                 const operableNode = node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode;
-                if (operableNode.parent && operableNode.parent.type === 'FRAME' && (operableNode.parent as FrameNode).layoutMode !== 'NONE') {
+                if (operableNode.parent && isValidAutoLayoutNode(operableNode.parent as SceneNode)) {
                   operableNode.layoutSizingHorizontal = 'FILL';
                   modifiedCount++;
                   notifyMessage = `Width set to Fill Container`;
@@ -556,9 +577,30 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
 
             if (finalWidth !== null && finalWidth >= 0) {
               if ('layoutSizingHorizontal' in node) (node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode).layoutSizingHorizontal = 'FIXED';
-              (node as SceneNode & { resize: (width: number, height: number) => void }).resize(finalWidth, node.height);
-              modifiedCount++;
-              notifyMessage = `Width set to ${parseFloat(finalWidth.toFixed(2))}`;
+              
+              const originalWidth = node.width; // Current width before this specific change
+              const originalHeight = node.height;
+
+              const hasLockedAspectRatio = 'targetAspectRatio' in node && (node as any).targetAspectRatio !== null;
+              const isAutoResizeText = node.type === 'TEXT' && (node as TextNode).textAutoResize !== 'NONE';
+              
+              if (hasLockedAspectRatio && !isAutoResizeText) {
+                if (originalWidth === 0) {
+                  // Cannot determine aspect ratio if original width is 0. Resize with original height.
+                  (node as SceneNode & { resize: (width: number, height: number) => void }).resize(finalWidth, originalHeight);
+                } else {
+                  const aspectRatio = originalHeight / originalWidth;
+                  const newHeight = finalWidth * aspectRatio;
+                  (node as SceneNode & { resize: (width: number, height: number) => void }).resize(finalWidth, newHeight);
+                }
+                modifiedCount++;
+                notifyMessage = `Width set to ${parseFloat(finalWidth.toFixed(2))} (aspect ratio maintained)`;
+              } else {
+                // If not locked or is auto-resize text, resize normally, preserving current height.
+                (node as SceneNode & { resize: (width: number, height: number) => void }).resize(finalWidth, originalHeight);
+                modifiedCount++;
+                notifyMessage = `Width set to ${parseFloat(finalWidth.toFixed(2))}`;
+              }
             } else { // finalWidth is null or negative
               figma.notify("Invalid width value.", { error: true });
               figma.closePlugin();
@@ -953,7 +995,7 @@ function handleWidthFill(selection: readonly SceneNode[]) {
        figma.notify(`Fill/Fixed sizing is not directly applicable to Groups. Consider Frame with Auto Layout.`, { timeout: 3000 });
     } else if ('layoutSizingHorizontal' in node) {
       const sizableNode = node as SizableNode;
-      if (sizableNode.parent && sizableNode.parent.type === 'FRAME' && (sizableNode.parent as AutoLayoutNode).layoutMode !== 'NONE') {
+      if (sizableNode.parent && isValidAutoLayoutNode(sizableNode.parent as SceneNode)) {
         sizableNode.layoutSizingHorizontal = 'FILL';
         modifiedCount++;
       } else {
@@ -974,7 +1016,7 @@ function handleHeightFill(selection: readonly SceneNode[]) {
        figma.notify(`Fill/Fixed sizing is not directly applicable to Groups. Consider Frame with Auto Layout.`, { timeout: 3000 });
     } else if ('layoutSizingVertical' in node) {
       const sizableNode = node as SizableNode;
-      if (sizableNode.parent && sizableNode.parent.type === 'FRAME' && (sizableNode.parent as AutoLayoutNode).layoutMode !== 'NONE') {
+      if (sizableNode.parent && isValidAutoLayoutNode(sizableNode.parent as SceneNode)) {
         sizableNode.layoutSizingVertical = 'FILL';
         modifiedCount++;
       } else {
