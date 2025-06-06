@@ -444,7 +444,7 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
             if (lowerValue === 'hug') {
               if (node.type === 'TEXT') {
                 const textNode = node as TextNode;
-                const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as AutoLayoutNode).layoutMode !== 'NONE';
+                const parentIsAutoLayout = textNode.parent && isValidAutoLayoutNode(textNode.parent as SceneNode);
                 if (parentIsAutoLayout && 'layoutSizingVertical' in textNode) {
                   textNode.layoutSizingVertical = 'HUG';
                 } else {
@@ -488,6 +488,11 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
             }
 
             if (finalHeight !== null && finalHeight >= 0) {
+              if (node.type === 'TEXT') {
+                const textNode = node as TextNode;
+                await loadFontsForNodes([textNode]);
+                textNode.textAutoResize = 'NONE';
+              }
               if ('layoutSizingVertical' in node) (node as SizableNode).layoutSizingVertical = 'FIXED';
               
               const originalWidth = node.width;
@@ -532,7 +537,7 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
             if (lowerValue === 'hug') {
               if (node.type === 'TEXT') {
                 const textNode = node as TextNode;
-                const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as AutoLayoutNode).layoutMode !== 'NONE';
+                const parentIsAutoLayout = textNode.parent && isValidAutoLayoutNode(textNode.parent as SceneNode);
                 if (parentIsAutoLayout && 'layoutSizingHorizontal' in textNode) {
                   textNode.layoutSizingHorizontal = 'HUG';
                 } else {
@@ -576,6 +581,11 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
             }
 
             if (finalWidth !== null && finalWidth >= 0) {
+              if (node.type === 'TEXT') {
+                const textNode = node as TextNode;
+                await loadFontsForNodes([textNode]);
+                textNode.textAutoResize = 'NONE';
+              }
               if ('layoutSizingHorizontal' in node) (node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode | TextNode).layoutSizingHorizontal = 'FIXED';
               
               const originalWidth = node.width; // Current width before this specific change
@@ -941,7 +951,7 @@ async function handleWidthHug(selection: readonly SceneNode[]) {
       const sizableNode = node as SizableNode;
       if (sizableNode.type === 'TEXT') {
         const textNode = sizableNode as TextNode;
-        const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as AutoLayoutNode).layoutMode !== 'NONE';
+        const parentIsAutoLayout = textNode.parent && isValidAutoLayoutNode(textNode.parent as SceneNode);
         if (parentIsAutoLayout) {
           textNode.layoutSizingHorizontal = 'HUG';
         } else {
@@ -969,7 +979,7 @@ async function handleHeightHug(selection: readonly SceneNode[]) {
       const sizableNode = node as SizableNode;
       if (sizableNode.type === 'TEXT') {
         const textNode = sizableNode as TextNode;
-        const parentIsAutoLayout = textNode.parent && textNode.parent.type === 'FRAME' && (textNode.parent as AutoLayoutNode).layoutMode !== 'NONE';
+        const parentIsAutoLayout = textNode.parent && isValidAutoLayoutNode(textNode.parent as SceneNode);
         if (parentIsAutoLayout) {
           textNode.layoutSizingVertical = 'HUG';
         } else {
