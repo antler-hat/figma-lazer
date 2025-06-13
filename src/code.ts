@@ -945,27 +945,65 @@ async function handleWidthHug(selection: readonly SceneNode[]) {
   if (!ensureSelection(selection, 'Width to Hug')) return;
   let modifiedCount = 0;
   for (const node of selection) {
+    const nodeNameSafe = node.name || 'Unnamed';
+    const nodeTypeSafe = node.type || 'UnknownType';
+    console.log(`W-HUG: Processing node: ${node.id}, Type: ${nodeTypeSafe}, Name: ${nodeNameSafe}`);
+
     if (node.type === 'GROUP') {
-      figma.notify(`Group "${node.name}" naturally hugs its content.`, { timeout: 2000 });
-    } else if ('layoutSizingHorizontal' in node) {
-      const sizableNode = node as SizableNode;
-      if (sizableNode.type === 'TEXT') {
-        const textNode = sizableNode as TextNode;
-        const parentIsAutoLayout = textNode.parent && isValidAutoLayoutNode(textNode.parent as SceneNode);
-        if (parentIsAutoLayout) {
+      console.log(`W-HUG: Node ${nodeNameSafe} is GROUP`);
+      figma.notify(`Group "${nodeNameSafe}" naturally hugs its content.`, { timeout: 2000 });
+    } else if (node.type === 'TEXT') {
+      console.log(`W-HUG: Node ${nodeNameSafe} is TEXT`);
+      const textNode = node as TextNode;
+      const parentIsAutoLayout = textNode.parent && isValidAutoLayoutNode(textNode.parent as SceneNode);
+      if (parentIsAutoLayout) {
+        console.log(`W-HUG: Text node ${nodeNameSafe} has AutoLayout parent. Setting layoutSizingHorizontal.`);
+        try {
           textNode.layoutSizingHorizontal = 'HUG';
-        } else {
-          await loadFontsForNodes([textNode]);
-          textNode.textAutoResize = 'WIDTH_AND_HEIGHT';
+          modifiedCount++;
+        } catch (e) {
+          console.error(`W-HUG: Error HUG Text (AL parent) ${nodeNameSafe}:`, e);
+          figma.notify(`Error HUG Text (AL): ${nodeNameSafe} - ${(e as Error).message}`, { error: true });
         }
       } else {
-        sizableNode.layoutSizingHorizontal = 'HUG';
+        console.log(`W-HUG: Text node ${nodeNameSafe} does not have AutoLayout parent. Setting textAutoResize.`);
+        let fontsLoaded = false;
+        try {
+          await loadFontsForNodes([textNode]);
+          fontsLoaded = true;
+          console.log(`W-HUG: Fonts loaded for ${nodeNameSafe}`);
+        } catch (e) {
+          console.error(`W-HUG: Error loading fonts for ${nodeNameSafe}:`, e);
+          figma.notify(`Error loading fonts for ${nodeNameSafe}: ${(e as Error).message}`, { error: true });
+        }
+        if (fontsLoaded) {
+          try {
+            textNode.textAutoResize = 'WIDTH_AND_HEIGHT';
+            modifiedCount++;
+            console.log(`W-HUG: textAutoResize set for ${nodeNameSafe}`);
+          } catch (e) {
+            console.error(`W-HUG: Error textAutoResize ${nodeNameSafe}:`, e);
+            figma.notify(`Error auto-resize Text: ${nodeNameSafe} - ${(e as Error).message}`, { error: true });
+          }
+        }
       }
-      modifiedCount++;
+    } else if (isValidAutoLayoutNode(node)) {
+      console.log(`W-HUG: Node ${nodeNameSafe} is Valid AutoLayout. Setting layoutSizingHorizontal.`);
+      try {
+        node.layoutSizingHorizontal = 'HUG';
+        modifiedCount++;
+      } catch (e) {
+        console.error(`W-HUG: Error HUG AutoLayout ${nodeNameSafe}:`, e);
+        figma.notify(`Error HUG AutoLayout: ${nodeNameSafe} - ${(e as Error).message}`, { error: true });
+      }
+    } else {
+      console.log(`W-HUG: Node ${nodeNameSafe} (${nodeTypeSafe}) is OTHER type. Notifying as inapplicable.`);
+      figma.notify(`Hug Contents (Width) is not applicable to "${nodeNameSafe}" (${nodeTypeSafe}). Requires Auto Layout frames or text layers.`, { timeout: 3500 });
     }
   }
+  console.log(`W-HUG: Loop finished. Modified count: ${modifiedCount}`);
   if (modifiedCount > 0) figma.notify(`Width set to Hug for ${modifiedCount} layer(s).`);
-  else if (selection.length > 0) figma.notify('No applicable layers found for "Width to Hug".', { timeout: 2000});
+  else if (selection.length > 0) figma.notify('No applicable layers found for "Width to Hug".', { timeout: 2000 });
   figma.closePlugin();
 }
 
@@ -973,27 +1011,65 @@ async function handleHeightHug(selection: readonly SceneNode[]) {
   if (!ensureSelection(selection, 'Height to Hug')) return;
   let modifiedCount = 0;
   for (const node of selection) {
+    const nodeNameSafe = node.name || 'Unnamed';
+    const nodeTypeSafe = node.type || 'UnknownType';
+    console.log(`H-HUG: Processing node: ${node.id}, Type: ${nodeTypeSafe}, Name: ${nodeNameSafe}`);
+
     if (node.type === 'GROUP') {
-      figma.notify(`Group "${node.name}" naturally hugs its content.`, { timeout: 2000 });
-    } else if ('layoutSizingVertical' in node) {
-      const sizableNode = node as SizableNode;
-      if (sizableNode.type === 'TEXT') {
-        const textNode = sizableNode as TextNode;
-        const parentIsAutoLayout = textNode.parent && isValidAutoLayoutNode(textNode.parent as SceneNode);
-        if (parentIsAutoLayout) {
+      console.log(`H-HUG: Node ${nodeNameSafe} is GROUP`);
+      figma.notify(`Group "${nodeNameSafe}" naturally hugs its content.`, { timeout: 2000 });
+    } else if (node.type === 'TEXT') {
+      console.log(`H-HUG: Node ${nodeNameSafe} is TEXT`);
+      const textNode = node as TextNode;
+      const parentIsAutoLayout = textNode.parent && isValidAutoLayoutNode(textNode.parent as SceneNode);
+      if (parentIsAutoLayout) {
+        console.log(`H-HUG: Text node ${nodeNameSafe} has AutoLayout parent. Setting layoutSizingVertical.`);
+        try {
           textNode.layoutSizingVertical = 'HUG';
-        } else {
-          await loadFontsForNodes([textNode]);
-          textNode.textAutoResize = 'HEIGHT';
+          modifiedCount++;
+        } catch (e) {
+          console.error(`H-HUG: Error HUG Text V (AL parent) ${nodeNameSafe}:`, e);
+          figma.notify(`Error HUG Text V (AL): ${nodeNameSafe} - ${(e as Error).message}`, { error: true });
         }
       } else {
-        sizableNode.layoutSizingVertical = 'HUG';
+        console.log(`H-HUG: Text node ${nodeNameSafe} does not have AutoLayout parent. Setting textAutoResize.`);
+        let fontsLoaded = false;
+        try {
+          await loadFontsForNodes([textNode]);
+          fontsLoaded = true;
+          console.log(`H-HUG: Fonts loaded for ${nodeNameSafe}`);
+        } catch (e) {
+          console.error(`H-HUG: Error loading fonts V for ${nodeNameSafe}:`, e);
+          figma.notify(`Error loading fonts V for ${nodeNameSafe}: ${(e as Error).message}`, { error: true });
+        }
+        if (fontsLoaded) {
+          try {
+            textNode.textAutoResize = 'HEIGHT';
+            modifiedCount++;
+            console.log(`H-HUG: textAutoResize set for ${nodeNameSafe}`);
+          } catch (e) {
+            console.error(`H-HUG: Error textAutoResize V ${nodeNameSafe}:`, e);
+            figma.notify(`Error auto-resize Text V: ${nodeNameSafe} - ${(e as Error).message}`, { error: true });
+          }
+        }
       }
-      modifiedCount++;
+    } else if (isValidAutoLayoutNode(node)) {
+      console.log(`H-HUG: Node ${nodeNameSafe} is Valid AutoLayout. Setting layoutSizingVertical.`);
+      try {
+        node.layoutSizingVertical = 'HUG';
+        modifiedCount++;
+      } catch (e) {
+        console.error(`H-HUG: Error HUG AutoLayout V ${nodeNameSafe}:`, e);
+        figma.notify(`Error HUG AutoLayout V: ${nodeNameSafe} - ${(e as Error).message}`, { error: true });
+      }
+    } else {
+      console.log(`H-HUG: Node ${nodeNameSafe} (${nodeTypeSafe}) is OTHER type. Notifying as inapplicable.`);
+      figma.notify(`Hug Contents (Height) is not applicable to "${nodeNameSafe}" (${nodeTypeSafe}). Requires Auto Layout frames or text layers.`, { timeout: 3500 });
     }
   }
+  console.log(`H-HUG: Loop finished. Modified count: ${modifiedCount}`);
   if (modifiedCount > 0) figma.notify(`Height set to Hug for ${modifiedCount} layer(s).`);
-  else if (selection.length > 0) figma.notify('No applicable layers found for "Height to Hug".', { timeout: 2000});
+  else if (selection.length > 0) figma.notify('No applicable layers found for "Height to Hug".', { timeout: 2000 });
   figma.closePlugin();
 }
 
