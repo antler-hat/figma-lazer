@@ -15,45 +15,45 @@ Disclaimer: I used Gemini 2.5 Pro to build this. Please excuse jank and AI-ness.
 This plugin allows you to quickly adjust:
 
 ### Width & Height
-*   `w.h - Set Width to Hug`
-*   `h.h - Set Height to Hug`
-*   `w.f - Set Width to Fill`
-*   `h.f - Set Height to Fill`
+*   `w.h - Width to Hug`
+*   `h.h - Height to Hug`
+*   `w.f - Width to Fill`
+*   `h.f - Height to Fill`
 *   `w.. - Set Width`  (prompts for custom value)
 *   `h.. - Set Height` (prompts for custom value)
 
 ### Padding
-*   `p.0 - Set All Padding to 0`
-*   `p.16 - Set All Padding to 16`
+*   `p.0 - All Padding to 0`
+*   `p.16 - All Padding to 16`
 *   `p.. - Set Padding` (prompts for custom value)
 
 ### Auto Layout
 *   `al.. - Set Auto Layout Alignment` (opens alignment UI)
-*   `al.v - Set Auto Layout to Vertical`
-*   `al.h - Set Auto Layout to Horizontal`
-*   `g.0 - Set Gap to 0`
-*   `g.8 - Set Gap to 8`
-*   `g.16 - Set Gap to 16`
+*   `al.v - Auto Layout to Vertical`
+*   `al.h - Auto Layout to Horizontal`
+*   `g.0 - Gap to 0`
+*   `g.8 - Gap to 8`
+*   `g.16 - Gap to 16`
 *   `g.. - Set Gap` (prompts for custom value)
 
 ### Border Radius
-*   `br.0 - Set Border Radius to 0px`
-*   `br.8 - Set Border Radius to 8px`
+*   `br.0 - Border Radius to 0px`
+*   `br.8 - Border Radius to 8px`
 *   `br.. - Set Border Radius` (prompts for custom value)
 
 ### Stroke
-*   `s.0 - Set Stroke Width to 0`
-*   `s.1 - Set Stroke Width to 1`
+*   `s.0 - Stroke Width to 0`
+*   `s.1 - Stroke Width to 1`
 *   `sw.. - Set Stroke Width` (prompts for custom value)
 *   `sc.. - Set Stroke Colour` (prompts for custom value)
 
 ### Fill
-*   `f.w - Add White Fill`
+*   `f.w - Fill White`
 *   `f.0 - Remove All Fills`
 *   `f.. - Set Fill Colour` (prompts for custom value)
 
 ### Text
-*   `ls.. - Set Text Letter Spacing` (prompts for custom value)
+*   `ls.. - Set Letter Spacing` (prompts for custom value)
 *   `t.s - Set Text Size` (prompts for custom value)
 
 ### General

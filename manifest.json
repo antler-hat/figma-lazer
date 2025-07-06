@@ -12,27 +12,27 @@
       "command": "help"
     },
     {
-      "name": "w.h - Set Width to Hug",
+      "name": "w.h - Width to Hug",
       "command": "widthHug"
     },
     {
-      "name": "h.h - Set Height to Hug",
+      "name": "h.h - Height to Hug",
       "command": "heightHug"
     },
     {
-      "name": "w.f - Set Width to Fill",
+      "name": "w.f - Width to Fill",
       "command": "widthFill"
     },
     {
-      "name": "h.f - Set Height to Fill",
+      "name": "h.f - Height to Fill",
       "command": "heightFill"
     },
     {
-      "name": "p.0 - Set All Padding to 0",
+      "name": "p.0 - All Padding to 0",
       "command": "padding0"
     },
     {
-      "name": "p.16 - Set All Padding to 16",
+      "name": "p.16 - All Padding to 16",
       "command": "padding16"
     },
     {
@@ -40,31 +40,31 @@
       "command": "setAutolayout"
     },
     {
-      "name": "al.h - Set Auto Layout to Horizontal",
+      "name": "al.h -  Auto Layout to Horizontal",
       "command": "aLayoutHorizontal"
     },
     {
-      "name": "al.v - Set Auto Layout to Vertical",
+      "name": "al.v - Auto Layout to Vertical",
       "command": "aLayoutVertical"
     },
     {
-      "name": "br.8 - Set Border Radius to 8px",
+      "name": "br.8 - Border Radius to 8px",
       "command": "borderRadius8"
     },
     {
-      "name": "br.0 - Set Border Radius to 0px",
+      "name": "br.0 - Border Radius to 0px",
       "command": "borderRadius0"
     },
     {
-      "name": "s.1 - Set Stroke to 1",
+      "name": "s.1 - Stroke to 1",
       "command": "stroke1"
     },
     {
-      "name": "s.0 - Set Stroke to 0",
+      "name": "s.0 - Stroke to 0",
       "command": "stroke0"
     },
     {
-      "name": "f.w - Add White Fill",
+      "name": "f.w - Fill White",
       "command": "fillWhite"
     },
     {
@@ -72,15 +72,15 @@
       "command": "fill0"
     },
     {
-      "name": "g.0 - Set Gap to 0",
+      "name": "g.0 - Gap to 0",
       "command": "gap0"
     },
     {
-      "name": "g.8 - Set Gap to 8",
+      "name": "g.8 - Gap to 8",
       "command": "gap8"
     },
     {
-      "name": "g.16 - Set Gap to 16",
+      "name": "g.16 - Gap to 16",
       "command": "gap16"
     },
     {
@@ -116,7 +116,7 @@
       "command": "setGap"
     },
     {
-      "name": "ls.. - Set Text Letter Spacing",
+      "name": "ls.. - Set Letter Spacing",
       "command": "lineSpacing"
     },
     {
