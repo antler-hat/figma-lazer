@@ -89,43 +89,123 @@
     },
     {
       "name": "p.. - Set Padding",
-      "command": "setPadding"
+      "command": "setPadding",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
     },
     {
       "name": "h.. - Set Height",
-      "command": "setHeight"
+      "command": "setHeight",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
     },
     {
       "name": "w.. - Set Width",
-      "command": "setWidth"
+      "command": "setWidth",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
     },
     {
       "name": "br.. - Set Border Radius",
-      "command": "setBorderRadius"
+      "command": "setBorderRadius",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
     },
     {
       "name": "sw.. - Set Stroke Width",
-      "command": "setStrokeWidth"
+      "command": "setStrokeWidth",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
     },
     {
       "name": "sc.. - Set Stroke Colour",
-      "command": "setStrokeColour"
+      "command": "setStrokeColour",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
     },
     {
       "name": "f.. - Set Fill Colour",
-      "command": "setFillColour"
+      "command": "setFillColour",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
     },
     {
       "name": "g.. - Set Gap",
-      "command": "setGap"
+      "command": "setGap",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
     },
     {
       "name": "ls.. - Set Letter Spacing",
-      "command": "lineSpacing"
+      "command": "lineSpacing",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
     },
     {
       "name": "t.s - Set Text Size",
-      "command": "textSize"
+      "command": "textSize",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
     }
   ],
   "ui": {

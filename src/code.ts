@@ -1276,204 +1276,196 @@ const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Pro
 
 // --- END NEW COMMAND HANDLERS & DISPATCHER ---
 
-if (figma.command === 'setAutolayout') {
-  figma.showUI(autoAlignmentControlHtmlContent, { width: 180, height: 180, themeColors: true });
-  sendCurrentStateToUIForAA(); // Initial state for AA UI
-  figma.on('selectionchange', () => {
-    if (figma.command === 'setAutolayout') { // Only if AA is the active command context
-        sendCurrentStateToUIForAA();
+// --- START figma.parameters.on('input') HANDLER ---
+figma.parameters.on('input', ({ key, query, result }: ParameterInputEvent) => {
+  const presets: { [key: string]: (string | number)[] } = {
+    'setBorderRadius': [0, 4, 8, 16, 32, 99999],
+    'setPadding': [0, 4, 8, 16, 24, 32, 48, 64, 80],
+    'setHeight': [4, 8, 16, 24, 32, 48, 64, 80],
+    'setWidth': [4, 8, 16, 24, 32, 48, 64, 80],
+    'setStrokeWidth': [0, 1, 2, 4, 8],
+    'setGap': [0, 4, 8, 16, 24, 32, 48],
+    'setFillColour': ['white', 'black', 'red', 'blue', 'cyan', 'magenta', 'green', 'gold'],
+    'setStrokeColour': ['white', 'black', 'red', 'blue', 'cyan', 'magenta', 'green', 'gold'],
+    'lineSpacing': [0],
+  };
+
+  const commandKey = figma.command;
+  if (presets[commandKey]) {
+    const suggestions = presets[commandKey]
+      .map(String) // Convert all to strings for filtering
+      .filter(s => s.toLowerCase().includes(query.toLowerCase()));
+    result.setSuggestions(suggestions);
+  }
+});
+// --- END figma.parameters.on('input') HANDLER ---
+
+
+// --- START NEW figma.on('run') HANDLER ---
+figma.on('run', async ({ command, parameters }: RunEvent) => {
+  const selection = figma.currentPage.selection;
+
+  // If parameters are provided, handle the command directly
+  if (parameters) {
+    const value = parameters.value;
+    // We can create a simple mapping for commands that just need a value
+    const parameterCommandMap: { [key: string]: string } = {
+      'setPadding': 'setPadding',
+      'setHeight': 'setHeight',
+      'setWidth': 'setWidth',
+      'setBorderRadius': 'setBorderRadius',
+      'setStrokeWidth': 'setStrokeWidth',
+      'setStrokeColour': 'setStrokeColour',
+      'setFillColour': 'setFillColour',
+      'setGap': 'setGap',
+      'textSize': 'setTextSize',
+      'lineSpacing': 'setTextLetterSpacing'
+    };
+
+    if (parameterCommandMap[command]) {
+      // Directly call a modified version of handleSubmitValue
+      // This avoids duplicating logic. We pass a "fake" message object.
+      await handleSubmitValue({ type: 'submit-value', propertyType: parameterCommandMap[command], value: value }, selection);
+    } else {
+      // Fallback for any parameterized command not in the map
+      figma.notify(`Command "${command}" with parameters is not handled yet.`, { error: true });
+      figma.closePlugin();
     }
-  });
-  // figma.ui.onmessage is now global
-} else if (figma.command === 'help') {
-  figma.showUI(helpDialogHtmlContent, { width: 800, height: 600, themeColors: true , title: "Lazer Commands" });
-  // The help dialog will send 'close-plugin' on Esc/Enter/Close button click
-} else if (commandHandlers[figma.command]) {
-  const selection = figma.currentPage.selection;
-  // Most handlers in commandHandlers already call ensureSelection or don't need selection.
-  // If a generic pre-selection check is desired for all mapped commands, it could be added here.
-  // For now, let individual handlers manage their selection needs.
-  commandHandlers[figma.command](selection);
-} else if (figma.command === 'setPadding') {
-  const selection = figma.currentPage.selection;
-  if (selection.length === 0) {
-    figma.notify("Please select at least one layer.", { error: true });
-    figma.closePlugin();
-  } else {
+    return; // Important to exit after handling parameterized command
+  }
+
+  // --- If NO parameters are provided, run original logic (show UI, etc.) ---
+
+  if (command === 'setAutolayout') {
+    figma.showUI(autoAlignmentControlHtmlContent, { width: 180, height: 180, themeColors: true });
+    sendCurrentStateToUIForAA(); // Initial state for AA UI
+    figma.on('selectionchange', () => {
+      if (figma.command === 'setAutolayout') {
+        sendCurrentStateToUIForAA();
+      }
+    });
+  } else if (command === 'help') {
+    figma.showUI(helpDialogHtmlContent, { width: 800, height: 600, themeColors: true, title: "Lazer Commands" });
+  } else if (commandHandlers[command]) {
+    commandHandlers[command](selection);
+  } else if (command === 'setPadding') {
+    if (!ensureSelection(selection, 'Set Padding')) return;
     const isPaddingApplicable = (node: SceneNode): node is PaddingApplicableNode =>
       'paddingLeft' in node && 'paddingRight' in node && 'paddingTop' in node && 'paddingBottom' in node;
-
     if (!selection.some(isPaddingApplicable)) {
       figma.notify("Padding is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
       const commonPadding = getCommonPaddingValue(selection);
-      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Padding" });
+      figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Padding" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setPadding', title: 'Set All Padding (e.g., 10 or 10+5)', currentValue: commonPadding });
     }
-  }
-} else if (figma.command === 'setHeight') {
-  const selection = figma.currentPage.selection;
-  if (selection.length === 0) {
-    figma.notify("Please select at least one layer.", { error: true });
-    figma.closePlugin();
-  } else {
+  } else if (command === 'setHeight') {
+    if (!ensureSelection(selection, 'Set Height')) return;
     const isHeightApplicable = (node: SceneNode): node is SceneNode & { height: number, resize: Function } =>
       'resize' in node && 'height' in node && typeof (node as any).height === 'number';
-
     if (!selection.some(isHeightApplicable)) {
       figma.notify("Height is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
       const commonHeight = getCommonPropertyValue(selection, 'height', isHeightApplicable);
-      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Height" });
+      figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Height" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setHeight', title: 'Set Height (e.g., 100, 50%, 25% + 10)', currentValue: commonHeight });
     }
-  }
-} else if (figma.command === 'setWidth') {
-  const selection = figma.currentPage.selection;
-  if (selection.length === 0) {
-    figma.notify("Please select at least one layer.", { error: true });
-    figma.closePlugin();
-  } else {
+  } else if (command === 'setWidth') {
+    if (!ensureSelection(selection, 'Set Width')) return;
     const isWidthApplicable = (node: SceneNode): node is SceneNode & { width: number, resize: Function } =>
       'resize' in node && 'width' in node && typeof (node as any).width === 'number';
-
     if (!selection.some(isWidthApplicable)) {
       figma.notify("Width is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
       const commonWidth = getCommonPropertyValue(selection, 'width', isWidthApplicable);
-      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Width" });
+      figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Width" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setWidth', title: 'Set Width (e.g., 100, 50%, 25% + 10)', currentValue: commonWidth });
     }
-  }
-} else if (figma.command === 'setBorderRadius') {
-  const selection = figma.currentPage.selection;
-  if (selection.length === 0) {
-    figma.notify("Please select at least one layer.", { error: true });
-    figma.closePlugin();
-  } else {
-    const isBorderRadiusApplicable = (node: SceneNode): node is CornerRadiusApplicableNode =>
-      'cornerRadius' in node;
-
+  } else if (command === 'setBorderRadius') {
+    if (!ensureSelection(selection, 'Set Border Radius')) return;
+    const isBorderRadiusApplicable = (node: SceneNode): node is CornerRadiusApplicableNode => 'cornerRadius' in node;
     if (!selection.some(isBorderRadiusApplicable)) {
       figma.notify("Border Radius is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
       const commonBorderRadius = getCommonPropertyValue(selection, 'cornerRadius', isBorderRadiusApplicable);
-      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Border Radius" });
+      figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Border Radius" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setBorderRadius', title: 'Set Border Radius (e.g., 8 or 2*3)', currentValue: commonBorderRadius });
     }
-  }
-} else if (figma.command === 'setStrokeWidth') {
-  const selection = figma.currentPage.selection;
-  if (selection.length === 0) {
-    figma.notify("Please select at least one layer.", { error: true });
-    figma.closePlugin();
-  } else {
-    const isStrokeWeightApplicable = (node: SceneNode): node is SceneNode & { strokeWeight: number | typeof figma.mixed } =>
-      'strokeWeight' in node;
-
+  } else if (command === 'setStrokeWidth') {
+    if (!ensureSelection(selection, 'Set Stroke Width')) return;
+    const isStrokeWeightApplicable = (node: SceneNode): node is SceneNode & { strokeWeight: number | typeof figma.mixed } => 'strokeWeight' in node;
     if (!selection.some(isStrokeWeightApplicable)) {
       figma.notify("Stroke Width is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
       const commonStrokeWeight = getCommonPropertyValue(selection, 'strokeWeight', isStrokeWeightApplicable);
-      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Stroke Width" });
+      figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Stroke Width" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setStrokeWidth', title: 'Set Stroke Width (e.g., 1 or 1+1)', currentValue: commonStrokeWeight });
     }
-  }
-} else if (figma.command === 'setStrokeColour') {
-  const selection = figma.currentPage.selection;
-  if (selection.length === 0) {
-    figma.notify("Please select at least one layer.", { error: true });
-    figma.closePlugin();
-  } else {
-    const isStrokeColorApplicable = (node: SceneNode): node is SceneNode & { strokes: readonly Paint[] | typeof figma.mixed } =>
-      'strokes' in node;
-
+  } else if (command === 'setStrokeColour') {
+    if (!ensureSelection(selection, 'Set Stroke Colour')) return;
+    const isStrokeColorApplicable = (node: SceneNode): node is SceneNode & { strokes: readonly Paint[] | typeof figma.mixed } => 'strokes' in node;
     if (!selection.some(isStrokeColorApplicable)) {
       figma.notify("Stroke Color is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
       const commonStrokeColorHex = getCommonSolidPaintColorHex(selection, 'strokes');
-      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Stroke Color" });
+      figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Stroke Color" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setStrokeColour', title: 'Set Stroke Color (e.g., #FF0000)', currentValue: commonStrokeColorHex });
     }
-  }
-} else if (figma.command === 'setFillColour') {
-  const selection = figma.currentPage.selection;
-  if (selection.length === 0) {
-    figma.notify("Please select at least one layer.", { error: true });
-    figma.closePlugin();
-  } else {
-    const isFillColorApplicable = (node: SceneNode): node is SceneNode & { fills: readonly Paint[] | typeof figma.mixed } =>
-      'fills' in node;
-
+  } else if (command === 'setFillColour') {
+    if (!ensureSelection(selection, 'Set Fill Colour')) return;
+    const isFillColorApplicable = (node: SceneNode): node is SceneNode & { fills: readonly Paint[] | typeof figma.mixed } => 'fills' in node;
     if (!selection.some(isFillColorApplicable)) {
       figma.notify("Fill Color is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
       const commonFillColorHex = getCommonSolidPaintColorHex(selection, 'fills');
-      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Fill Color" });
+      figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Fill Color" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setFillColour', title: 'Set Fill Color (e.g., #00FF00)', currentValue: commonFillColorHex });
     }
-  }
-} else if (figma.command === 'setGap') {
-  const selection = figma.currentPage.selection;
-  if (selection.length === 0) {
-    figma.notify("Please select at least one layer.", { error: true });
-    figma.closePlugin();
-  } else {
+  } else if (command === 'setGap') {
+    if (!ensureSelection(selection, 'Set Gap')) return;
     if (!selection.some(isValidAutoLayoutNode)) {
       figma.notify("Gap is not applicable to any selected Auto Layout layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
       const commonGap = getCommonPropertyValue(selection, 'itemSpacing', isValidAutoLayoutNode);
-      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Gap" });
+      figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Gap" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setGap', title: 'Set Gap (e.g., 8 or 10-2)', currentValue: commonGap });
     }
-  }
-} else if (figma.command === 'textSize') { // Set Text Size
-  const selection = figma.currentPage.selection;
-  if (selection.length === 0) {
-    figma.notify("Please select at least one text layer.", { error: true });
-    figma.closePlugin();
-  } else {
+  } else if (command === 'textSize') {
+    if (!ensureSelection(selection, 'Set Text Size')) return;
     const isTextNode = (node: SceneNode): node is TextNode => node.type === 'TEXT' && 'fontSize' in node;
     const textNodes = selection.filter(isTextNode);
-
     if (textNodes.length === 0) {
       figma.notify("Font Size is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
       const commonFontSize = getCommonPropertyValue(textNodes, 'fontSize', isTextNode);
-      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Font Size" });
+      figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Font Size" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setTextSize', title: 'Set Font Size (e.g., 16)', currentValue: commonFontSize });
     }
-  }
-} else if (figma.command === 'lineSpacing') {
-  const selection = figma.currentPage.selection;
-  if (selection.length === 0) {
-    figma.notify("Please select at least one text layer.", { error: true });
-    figma.closePlugin();
-  } else {
+  } else if (command === 'lineSpacing') {
+    if (!ensureSelection(selection, 'Set Letter Spacing')) return;
     const isTextNodeWithLetterSpacing = (node: SceneNode): node is TextNode => node.type === 'TEXT' && 'letterSpacing' in node;
     const textNodes = selection.filter(isTextNodeWithLetterSpacing);
-
     if (textNodes.length === 0) {
       figma.notify("Letter Spacing is not applicable to any selected layers.", { error: true, timeout: 3000 });
       figma.closePlugin();
     } else {
       const commonLetterSpacing = getCommonLetterSpacingValue(textNodes);
-      figma.showUI(inputDialogHtmlContent, { themeColors:true, width: 250, height: 100, title: "Set Letter Spacing" });
+      figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Letter Spacing" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setTextLetterSpacing', title: 'Set Letter Spacing (e.g., 2px or 5%)', currentValue: commonLetterSpacing });
     }
+  } else if (command) {
+    console.log("Unknown or unhandled command, closing plugin:", command);
+    figma.notify(`Command "${command}" is not recognized or has no specific handler.`, { error: true, timeout: 3000 });
+    figma.closePlugin();
   }
-} else if (figma.command) { // Fallback for any unhandled command
-     console.log("Unknown or unhandled command, closing plugin:", figma.command);
-     figma.notify(`Command "${figma.command}" is not recognized or has no specific handler.`, {error: true, timeout: 3000});
-     figma.closePlugin();
-}
-// Plugin closure for commands handled by commandHandlers or UI interactions is managed within those handlers/interactions.
+});
+// --- END NEW figma.on('run') HANDLER ---
