@@ -1276,6 +1276,31 @@ const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Pro
 
 // --- END NEW COMMAND HANDLERS & DISPATCHER ---
 
+// --- START figma.parameters.on('input') HANDLER ---
+figma.parameters.on('input', ({ key, query, result }: ParameterInputEvent) => {
+  const presets: { [key: string]: (string | number)[] } = {
+    'setBorderRadius': [0, 4, 8, 16, 32, 99999],
+    'setPadding': [0, 4, 8, 16, 24, 32, 48, 64, 80],
+    'setHeight': [4, 8, 16, 24, 32, 48, 64, 80],
+    'setWidth': [4, 8, 16, 24, 32, 48, 64, 80],
+    'setStrokeWidth': [0, 1, 2, 4, 8],
+    'setGap': [0, 4, 8, 16, 24, 32, 48],
+    'setFillColour': ['white', 'black', 'red', 'blue', 'cyan', 'magenta', 'green', 'gold'],
+    'setStrokeColour': ['white', 'black', 'red', 'blue', 'cyan', 'magenta', 'green', 'gold'],
+    'lineSpacing': [0],
+  };
+
+  const commandKey = figma.command;
+  if (presets[commandKey]) {
+    const suggestions = presets[commandKey]
+      .map(String) // Convert all to strings for filtering
+      .filter(s => s.toLowerCase().includes(query.toLowerCase()));
+    result.setSuggestions(suggestions);
+  }
+});
+// --- END figma.parameters.on('input') HANDLER ---
+
+
 // --- START NEW figma.on('run') HANDLER ---
 figma.on('run', async ({ command, parameters }: RunEvent) => {
   const selection = figma.currentPage.selection;
