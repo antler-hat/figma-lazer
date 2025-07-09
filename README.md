@@ -49,6 +49,7 @@ This plugin allows you to quickly adjust:
 
 ### Fill
 *   `f.w - Fill White`
+*   `f.b - Fill Black`
 *   `f.0 - Remove All Fills`
 *   `f.. - Set Fill Colour` (prompts for custom value)
 

@@ -68,6 +68,10 @@
       "command": "fillWhite"
     },
     {
+      "name": "f.b - Fill Black",
+      "command": "fillBlack"
+    },
+    {
       "name": "f.0 - Remove All Fills",
       "command": "fill0"
     },
