@@ -1165,17 +1165,17 @@ function setStrokeWeightForSelection(weight: number, selection: readonly SceneNo
   figma.closePlugin();
 }
 
-function handleFillDefault(selection: readonly SceneNode[]) {
-  if (!ensureSelection(selection, 'Add Default Fill')) return;
+function handleFillWhite(selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, 'Fill White')) return;
   let modifiedCount = 0;
   for (const node of selection) {
     if ('fills' in node) {
-      (node as FillableNode).fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]; // Default white fill
+      (node as FillableNode).fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }]; // White fill
       modifiedCount++;
     }
   }
-  if (modifiedCount > 0) figma.notify(`Default fill added to ${modifiedCount} layer(s).`);
-  else if (selection.length > 0) figma.notify('No applicable layers found for "Add Default Fill".', { timeout: 2000});
+  if (modifiedCount > 0) figma.notify(`White fill added to ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify('No applicable layers found for "Fill White".', { timeout: 2000});
   figma.closePlugin();
 }
 
@@ -1265,7 +1265,7 @@ const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Pro
   'stroke0': (sel) => setStrokeWeightForSelection(0, sel),
   'stroke1': (sel) => setStrokeWeightForSelection(1, sel),
   'fill0': handleFillRemoveAll,
-  'fillWhite': handleFillDefault,
+  'fillWhite': handleFillWhite,
   'fillBlack': handleFillBlack,
   'gap0': (sel) => setGapForSelection(0, sel),
   'gap8': (sel) => setGapForSelection(8, sel),
