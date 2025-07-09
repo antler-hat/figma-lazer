@@ -26,6 +26,12 @@ This plugin allows you to quickly adjust:
 *   `p.0 - All Padding to 0`
 *   `p.16 - All Padding to 16`
 *   `p.. - Set Padding` (prompts for custom value)
+*   `ptop.. - Set Top Padding`
+*   `pleft.. - Set Left Padding`
+*   `pright.. - Set Right Padding`
+*   `pbott.. - Set Bottom Padding`
+*   `phor.. - Set Horizontal Padding`
+*   `pvert.. - Set Vertical Padding`
 
 ### Auto Layout
 *   `al.. - Set Auto Layout Alignment` (opens alignment UI)

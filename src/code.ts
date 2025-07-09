@@ -437,6 +437,92 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
             }
           }
           break;
+        case 'setPaddingTop':
+          if ('paddingTop' in node) {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num >= 0) {
+              (node as PaddingApplicableNode).paddingTop = num;
+              modifiedCount++;
+              notifyMessage = `Top padding set to ${num}`;
+            } else {
+              figma.notify("Invalid padding value.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+        case 'setPaddingBottom':
+          if ('paddingBottom' in node) {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num >= 0) {
+              (node as PaddingApplicableNode).paddingBottom = num;
+              modifiedCount++;
+              notifyMessage = `Bottom padding set to ${num}`;
+            } else {
+              figma.notify("Invalid padding value.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+        case 'setPaddingLeft':
+          if ('paddingLeft' in node) {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num >= 0) {
+              (node as PaddingApplicableNode).paddingLeft = num;
+              modifiedCount++;
+              notifyMessage = `Left padding set to ${num}`;
+            } else {
+              figma.notify("Invalid padding value.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+        case 'setPaddingRight':
+          if ('paddingRight' in node) {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num >= 0) {
+              (node as PaddingApplicableNode).paddingRight = num;
+              modifiedCount++;
+              notifyMessage = `Right padding set to ${num}`;
+            } else {
+              figma.notify("Invalid padding value.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+        case 'setPaddingHorizontal':
+          if ('paddingLeft' in node && 'paddingRight' in node) {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num >= 0) {
+              (node as PaddingApplicableNode).paddingLeft = num;
+              (node as PaddingApplicableNode).paddingRight = num;
+              modifiedCount++;
+              notifyMessage = `Horizontal padding set to ${num}`;
+            } else {
+              figma.notify("Invalid padding value.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
+        case 'setPaddingVertical':
+          if ('paddingTop' in node && 'paddingBottom' in node) {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num >= 0) {
+              (node as PaddingApplicableNode).paddingTop = num;
+              (node as PaddingApplicableNode).paddingBottom = num;
+              modifiedCount++;
+              notifyMessage = `Vertical padding set to ${num}`;
+            } else {
+              figma.notify("Invalid padding value.", { error: true });
+              figma.closePlugin();
+              return;
+            }
+          }
+          break;
         case 'setHeight': // Height
           let handledHeightByHugFill = false;
           if (typeof value === 'string') {
@@ -1281,6 +1367,12 @@ figma.parameters.on('input', ({ key, query, result }: ParameterInputEvent) => {
   const presets: { [key: string]: (string | number)[] } = {
     'setBorderRadius': [0, 4, 8, 16, 32, 99999],
     'setPadding': [0, 4, 8, 16, 24, 32, 48, 64, 80],
+    'ptop': [0, 4, 8, 16, 24, 32, 48, 64, 80],
+    'pleft': [0, 4, 8, 16, 24, 32, 48, 64, 80],
+    'pright': [0, 4, 8, 16, 24, 32, 48, 64, 80],
+    'pbott': [0, 4, 8, 16, 24, 32, 48, 64, 80],
+    'phor': [0, 4, 8, 16, 24, 32, 48, 64, 80],
+    'pvert': [0, 4, 8, 16, 24, 32, 48, 64, 80],
     'setHeight': [4, 8, 16, 24, 32, 48, 64, 80],
     'setWidth': [4, 8, 16, 24, 32, 48, 64, 80],
     'setStrokeWidth': [0, 1, 2, 4, 8],
@@ -1311,6 +1403,12 @@ figma.on('run', async ({ command, parameters }: RunEvent) => {
     // We can create a simple mapping for commands that just need a value
     const parameterCommandMap: { [key: string]: string } = {
       'setPadding': 'setPadding',
+      'ptop': 'setPaddingTop',
+      'pleft': 'setPaddingLeft',
+      'pright': 'setPaddingRight',
+      'pbott': 'setPaddingBottom',
+      'phor': 'setPaddingHorizontal',
+      'pvert': 'setPaddingVertical',
       'setHeight': 'setHeight',
       'setWidth': 'setWidth',
       'setBorderRadius': 'setBorderRadius',
@@ -1360,6 +1458,36 @@ figma.on('run', async ({ command, parameters }: RunEvent) => {
       figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Padding" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setPadding', title: 'Set All Padding (e.g., 10 or 10+5)', currentValue: commonPadding });
     }
+  } else if (command === 'ptop') {
+    if (!ensureSelection(selection, 'Set Top Padding')) return;
+    const commonPadding = getCommonPropertyValue(selection, 'paddingTop', (node): node is PaddingApplicableNode => 'paddingTop' in node);
+    figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Top Padding" });
+    figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setPaddingTop', title: 'Set Top Padding (e.g., 10)', currentValue: commonPadding });
+  } else if (command === 'pleft') {
+    if (!ensureSelection(selection, 'Set Left Padding')) return;
+    const commonPadding = getCommonPropertyValue(selection, 'paddingLeft', (node): node is PaddingApplicableNode => 'paddingLeft' in node);
+    figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Left Padding" });
+    figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setPaddingLeft', title: 'Set Left Padding (e.g., 10)', currentValue: commonPadding });
+  } else if (command === 'pright') {
+    if (!ensureSelection(selection, 'Set Right Padding')) return;
+    const commonPadding = getCommonPropertyValue(selection, 'paddingRight', (node): node is PaddingApplicableNode => 'paddingRight' in node);
+    figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Right Padding" });
+    figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setPaddingRight', title: 'Set Right Padding (e.g., 10)', currentValue: commonPadding });
+  } else if (command === 'pbott') {
+    if (!ensureSelection(selection, 'Set Bottom Padding')) return;
+    const commonPadding = getCommonPropertyValue(selection, 'paddingBottom', (node): node is PaddingApplicableNode => 'paddingBottom' in node);
+    figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Bottom Padding" });
+    figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setPaddingBottom', title: 'Set Bottom Padding (e.g., 10)', currentValue: commonPadding });
+  } else if (command === 'phor') {
+    if (!ensureSelection(selection, 'Set Horizontal Padding')) return;
+    const commonPadding = getCommonPropertyValue(selection, 'paddingLeft', (node): node is PaddingApplicableNode => 'paddingLeft' in node);
+    figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Horizontal Padding" });
+    figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setPaddingHorizontal', title: 'Set Horizontal Padding (e.g., 10)', currentValue: commonPadding });
+  } else if (command === 'pvert') {
+    if (!ensureSelection(selection, 'Set Vertical Padding')) return;
+    const commonPadding = getCommonPropertyValue(selection, 'paddingTop', (node): node is PaddingApplicableNode => 'paddingTop' in node);
+    figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Vertical Padding" });
+    figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setPaddingVertical', title: 'Set Vertical Padding (e.g., 10)', currentValue: commonPadding });
   } else if (command === 'setHeight') {
     if (!ensureSelection(selection, 'Set Height')) return;
     const isHeightApplicable = (node: SceneNode): node is SceneNode & { height: number, resize: Function } =>
