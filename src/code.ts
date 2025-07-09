@@ -1179,6 +1179,20 @@ function handleFillDefault(selection: readonly SceneNode[]) {
   figma.closePlugin();
 }
 
+function handleFillBlack(selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, 'Add Black Fill')) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if ('fills' in node) {
+      (node as FillableNode).fills = [{ type: 'SOLID', color: { r: 0, g: 0, b: 0 } }]; // Black fill
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Black fill added to ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify('No applicable layers found for "Add Black Fill".', { timeout: 2000});
+  figma.closePlugin();
+}
+
 function handleFillRemoveAll(selection: readonly SceneNode[]) {
   if (!ensureSelection(selection, 'Remove All Fills')) return;
   let modifiedCount = 0;
@@ -1252,6 +1266,7 @@ const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Pro
   'stroke1': (sel) => setStrokeWeightForSelection(1, sel),
   'fill0': handleFillRemoveAll,
   'fillWhite': handleFillDefault,
+  'fillBlack': handleFillBlack,
   'gap0': (sel) => setGapForSelection(0, sel),
   'gap8': (sel) => setGapForSelection(8, sel),
   'gap16': (sel) => setGapForSelection(16, sel),
