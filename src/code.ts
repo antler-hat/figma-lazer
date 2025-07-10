@@ -1272,6 +1272,55 @@ function setPaddingForSelection(paddingValue: number, selection: readonly SceneN
   figma.closePlugin();
 }
 
+function setVerticalPaddingForSelection(paddingValue: number, selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, `Set Vertical Padding to ${paddingValue}`)) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if ('paddingTop' in node && 'paddingBottom' in node) {
+      const paddedNode = node as PaddingApplicableNode;
+      paddedNode.paddingTop = paddingValue;
+      paddedNode.paddingBottom = paddingValue;
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Vertical padding set to ${paddingValue} for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify(`No applicable layers found for "Set Vertical Padding to ${paddingValue}".`, { timeout: 2000});
+  figma.closePlugin();
+}
+
+function setHorizontalPaddingForSelection(paddingValue: number, selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, `Set Horizontal Padding to ${paddingValue}`)) return;
+  let modifiedCount = 0;
+  for (const node of selection) {
+    if ('paddingLeft' in node && 'paddingRight' in node) {
+      const paddedNode = node as PaddingApplicableNode;
+      paddedNode.paddingLeft = paddingValue;
+      paddedNode.paddingRight = paddingValue;
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`Horizontal padding set to ${paddingValue} for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify(`No applicable layers found for "Set Horizontal Padding to ${paddingValue}".`, { timeout: 2000});
+  figma.closePlugin();
+}
+
+function setSinglePaddingForSelection(paddingValue: number, side: 'top' | 'bottom' | 'left' | 'right', selection: readonly SceneNode[]) {
+  const commandName = `Set ${side.charAt(0).toUpperCase() + side.slice(1)} Padding to ${paddingValue}`;
+  if (!ensureSelection(selection, commandName)) return;
+  let modifiedCount = 0;
+  const propertyName = `padding${side.charAt(0).toUpperCase() + side.slice(1)}` as 'paddingTop' | 'paddingBottom' | 'paddingLeft' | 'paddingRight';
+
+  for (const node of selection) {
+    if (propertyName in node) {
+      (node as PaddingApplicableNode)[propertyName] = paddingValue;
+      modifiedCount++;
+    }
+  }
+  if (modifiedCount > 0) figma.notify(`${side.charAt(0).toUpperCase() + side.slice(1)} padding set to ${paddingValue} for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify(`No applicable layers found for "${commandName}".`, { timeout: 2000});
+  figma.closePlugin();
+}
+
 function setBorderRadiusForSelection(radius: number, selection: readonly SceneNode[]) {
   if (!ensureSelection(selection, `Set Border Radius to ${radius}`)) return;
   let modifiedCount = 0;
@@ -1399,6 +1448,12 @@ const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Pro
   'heightFill': handleHeightFill,
   'padding0': (sel) => setPaddingForSelection(0, sel),
   'padding16': (sel) => setPaddingForSelection(16, sel),
+  'ptop0': (sel) => setSinglePaddingForSelection(0, 'top', sel),
+  'pbott0': (sel) => setSinglePaddingForSelection(0, 'bottom', sel),
+  'pleft0': (sel) => setSinglePaddingForSelection(0, 'left', sel),
+  'pright0': (sel) => setSinglePaddingForSelection(0, 'right', sel),
+  'phor0': (sel) => setHorizontalPaddingForSelection(0, sel),
+  'pvert0': (sel) => setVerticalPaddingForSelection(0, sel),
   'borderRadius0': (sel) => setBorderRadiusForSelection(0, sel),
   'borderRadius8': (sel) => setBorderRadiusForSelection(8, sel),
   'stroke0': (sel) => setStrokeWeightForSelection(0, sel),

@@ -36,6 +36,30 @@
       "command": "padding16"
     },
     {
+      "name": "ptop.0 - Set top padding to 0",
+      "command": "ptop0"
+    },
+    {
+      "name": "pbott.0 - Set bottom padding to 0",
+      "command": "pbott0"
+    },
+    {
+      "name": "pleft.0 - Set left padding to 0",
+      "command": "pleft0"
+    },
+    {
+      "name": "pright.0 - Set right padding to 0",
+      "command": "pright0"
+    },
+    {
+      "name": "phor.0 - Set horizontal padding to 0",
+      "command": "phor0"
+    },
+    {
+      "name": "pvert.0 - Set vertical padding to 0",
+      "command": "pvert0"
+    },
+    {
       "name": "al.. - Set Auto Layout Alignment",
       "command": "setAutolayout"
     },
