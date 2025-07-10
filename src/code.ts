@@ -377,8 +377,10 @@ function parsePaddingShorthand(value: string): { top: number; right: number; bot
     return null;
   }
 
-  // Replace commas with spaces and split by one or more whitespace characters
-  const parts = value.replace(/,/g, ' ').trim().split(/\s+/);
+  // Value from UI is already space-separated, value from param is not.
+  // Standardize to space-separated.
+  const standardizedValue = value.replace(/,/g, ' ');
+  const parts = standardizedValue.trim().split(/\s+/);
   const numbers = parts.map(p => parseFloat(p)).filter(n => !isNaN(n));
 
   // Ensure all parts were valid numbers
@@ -474,7 +476,7 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
               modifiedCount++;
               notifyMessage = `Padding updated`;
             } else {
-              figma.notify("Invalid padding value. Use 1-4 values separated by spaces or commas.", { error: true });
+              figma.notify("Invalid padding. Use 1-4 comma-separated numbers.", { error: true });
               figma.closePlugin();
               return;
             }
@@ -538,7 +540,8 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
           break;
         case 'setPaddingHorizontal':
           if ('paddingLeft' in node && 'paddingRight' in node) {
-            const parts = String(value).replace(/,/g, ' ').trim().split(/\s+/);
+            const standardizedValue = String(value).replace(/,/g, ' ');
+            const parts = standardizedValue.trim().split(/\s+/);
             const numbers = parts.map(p => parseFloat(p)).filter(n => !isNaN(n));
 
             if (numbers.length > 0 && numbers.length <= 2 && numbers.length === parts.length) {
@@ -548,7 +551,7 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
               modifiedCount++;
               notifyMessage = `Horizontal padding updated`;
             } else {
-              figma.notify("Invalid horizontal padding. Use 1 or 2 values separated by spaces or commas.", { error: true });
+              figma.notify("Invalid horizontal padding. Use 1 or 2 comma-separated numbers.", { error: true });
               figma.closePlugin();
               return;
             }
@@ -556,7 +559,8 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
           break;
         case 'setPaddingVertical':
           if ('paddingTop' in node && 'paddingBottom' in node) {
-            const parts = String(value).replace(/,/g, ' ').trim().split(/\s+/);
+            const standardizedValue = String(value).replace(/,/g, ' ');
+            const parts = standardizedValue.trim().split(/\s+/);
             const numbers = parts.map(p => parseFloat(p)).filter(n => !isNaN(n));
 
             if (numbers.length > 0 && numbers.length <= 2 && numbers.length === parts.length) {
@@ -566,7 +570,7 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
               modifiedCount++;
               notifyMessage = `Vertical padding updated`;
             } else {
-              figma.notify("Invalid vertical padding. Use 1 or 2 values separated by spaces or commas.", { error: true });
+              figma.notify("Invalid vertical padding. Use 1 or 2 comma-separated numbers.", { error: true });
               figma.closePlugin();
               return;
             }

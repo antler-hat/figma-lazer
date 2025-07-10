@@ -100,34 +100,37 @@
         inputField.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
-                let valueToSubmit = inputField.value.trim(); // Trim the input value upfront
-                const lowerValue = valueToSubmit.toLowerCase(); // Use lowercase for "fill"/"hug" comparison
+                let valueToSubmit = inputField.value.trim();
+                const lowerValue = valueToSubmit.toLowerCase();
 
-                if (currentPropertyType === 'setWidth' || currentPropertyType === 'setHeight') {
+                const paddingPropertyTypes = ['setPadding', 'setPaddingHorizontal', 'setPaddingVertical'];
+
+                if (paddingPropertyTypes.includes(currentPropertyType)) {
+                    const parts = valueToSubmit.split(',');
+                    const evaluatedParts = parts.map(part => {
+                        const sanitizedPart = part.replace(/\s/g, ''); // Remove all spaces
+                        const evaluated = evaluateMathematicalExpression(sanitizedPart);
+                        return evaluated !== null ? evaluated : sanitizedPart; // Fallback to sanitized part if evaluation fails
+                    });
+                    valueToSubmit = evaluatedParts.join(' ');
+                } else if (currentPropertyType === 'setWidth' || currentPropertyType === 'setHeight') {
                     if (lowerValue === 'fill' || lowerValue === 'hug') {
-                        valueToSubmit = lowerValue; // Submit "fill" or "hug"
+                        valueToSubmit = lowerValue;
                     } else if (valueToSubmit.includes('%')) {
-                        // Percentage value, valueToSubmit is already correct (original trimmed input)
+                        // Percentage value is fine as is
                     } else {
-                        // Try to evaluate as a mathematical expression
                         const evaluatedValue = evaluateMathematicalExpression(valueToSubmit);
-                        if (evaluatedValue !== null && typeof evaluatedValue === 'number') {
+                        if (evaluatedValue !== null) {
                             valueToSubmit = String(evaluatedValue);
                         }
-                        // If not "fill", "hug", "%", or a valid math expression,
-                        // valueToSubmit remains the original trimmed input.
-                        // The backend (code.ts) will handle parsing this.
                     }
                 } else if (numericPropertyTypes.includes(currentPropertyType)) {
-                    // For other numeric types (e.g., padding, gap, border radius)
                     const evaluatedValue = evaluateMathematicalExpression(valueToSubmit);
-                    if (evaluatedValue !== null && typeof evaluatedValue === 'number') {
+                    if (evaluatedValue !== null) {
                         valueToSubmit = String(evaluatedValue);
                     }
-                    // If not a valid math expression, valueToSubmit remains the original trimmed input.
                 }
-                // For non-numeric types, or if no specific handling matched,
-                // valueToSubmit is the original trimmed input.
+
                 parent.postMessage({
                     pluginMessage: {
                         type: 'submit-value',
