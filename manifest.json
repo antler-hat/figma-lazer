@@ -100,6 +100,78 @@
       ]
     },
     {
+      "name": "ptop.. - Set Top Padding",
+      "command": "ptop",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
+    },
+    {
+      "name": "pleft.. - Set Left Padding",
+      "command": "pleft",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
+    },
+    {
+      "name": "pright.. - Set Right Padding",
+      "command": "pright",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
+    },
+    {
+      "name": "pbott.. - Set Bottom Padding",
+      "command": "pbott",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
+    },
+    {
+      "name": "phor.. - Set Horizontal Padding",
+      "command": "phor",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
+    },
+    {
+      "name": "pvert.. - Set Vertical Padding",
+      "command": "pvert",
+      "parameterOnly": false,
+      "parameters": [
+        {
+          "name": "Value",
+          "key": "value",
+          "allowFreeform": true
+        }
+      ]
+    },
+    {
       "name": "h.. - Set Height",
       "command": "setHeight",
       "parameterOnly": false,
