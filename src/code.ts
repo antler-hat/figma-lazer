@@ -365,6 +365,48 @@ function calculateSizeFromPercentageString(
 }
 // --- END NEW HELPER FUNCTION FOR PERCENTAGE SIZING ---
 
+// --- START PADDING SHORTHAND PARSER ---
+/**
+ * Parses a CSS-like padding shorthand string (e.g., "10", "10 20", "10, 20, 30", "10 20 30 40").
+ * Supports spaces and/or commas as delimiters.
+ * @param value The string value to parse.
+ * @returns An object with top, right, bottom, left properties, or null if invalid.
+ */
+function parsePaddingShorthand(value: string): { top: number; right: number; bottom: number; left: number } | null {
+  if (typeof value !== 'string' || !value.trim()) {
+    return null;
+  }
+
+  // Replace commas with spaces and split by one or more whitespace characters
+  const parts = value.replace(/,/g, ' ').trim().split(/\s+/);
+  const numbers = parts.map(p => parseFloat(p)).filter(n => !isNaN(n));
+
+  // Ensure all parts were valid numbers
+  if (numbers.length !== parts.length) {
+    return null;
+  }
+
+  // Apply CSS shorthand logic
+  switch (numbers.length) {
+    case 1:
+      // One value: All four sides
+      return { top: numbers[0], right: numbers[0], bottom: numbers[0], left: numbers[0] };
+    case 2:
+      // Two values: [top/bottom], [left/right]
+      return { top: numbers[0], right: numbers[1], bottom: numbers[0], left: numbers[1] };
+    case 3:
+      // Three values: [top], [left/right], [bottom]
+      return { top: numbers[0], right: numbers[1], bottom: numbers[2], left: numbers[1] };
+    case 4:
+      // Four values: [top], [right], [bottom], [left]
+      return { top: numbers[0], right: numbers[1], bottom: numbers[2], left: numbers[3] };
+    default:
+      // Invalid number of values
+      return null;
+  }
+}
+// --- END PADDING SHORTHAND PARSER ---
+
 // Mapping from UI index (0-8) to Figma alignment properties
 // [primaryAxisAlignItems, counterAxisAlignItems]
 // For a HORIZONTAL layout frame:
@@ -422,16 +464,17 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
       switch (propertyType) {
         case 'setPadding': // Padding
           if ('paddingLeft' in node && 'paddingRight' in node && 'paddingTop' in node && 'paddingBottom' in node) {
-            const num = parseFloat(value);
-            if (!isNaN(num) && num >= 0) { // Added num >= 0 check from previous plan
-              (node as PaddingApplicableNode).paddingLeft = num;
-              (node as PaddingApplicableNode).paddingRight = num;
-              (node as PaddingApplicableNode).paddingTop = num;
-              (node as PaddingApplicableNode).paddingBottom = num;
+            const padding = parsePaddingShorthand(value);
+            if (padding) {
+              const pNode = node as PaddingApplicableNode;
+              pNode.paddingTop = padding.top;
+              pNode.paddingRight = padding.right;
+              pNode.paddingBottom = padding.bottom;
+              pNode.paddingLeft = padding.left;
               modifiedCount++;
-              notifyMessage = `Padding set to ${num}`;
+              notifyMessage = `Padding updated`;
             } else {
-              figma.notify("Invalid padding value.", { error: true });
+              figma.notify("Invalid padding value. Use 1-4 values separated by spaces or commas.", { error: true });
               figma.closePlugin();
               return;
             }
@@ -495,14 +538,17 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
           break;
         case 'setPaddingHorizontal':
           if ('paddingLeft' in node && 'paddingRight' in node) {
-            const num = parseFloat(value);
-            if (!isNaN(num) && num >= 0) {
-              (node as PaddingApplicableNode).paddingLeft = num;
-              (node as PaddingApplicableNode).paddingRight = num;
+            const parts = String(value).replace(/,/g, ' ').trim().split(/\s+/);
+            const numbers = parts.map(p => parseFloat(p)).filter(n => !isNaN(n));
+
+            if (numbers.length > 0 && numbers.length <= 2 && numbers.length === parts.length) {
+              const pNode = node as PaddingApplicableNode;
+              pNode.paddingLeft = numbers[0];
+              pNode.paddingRight = numbers.length === 2 ? numbers[1] : numbers[0];
               modifiedCount++;
-              notifyMessage = `Horizontal padding set to ${num}`;
+              notifyMessage = `Horizontal padding updated`;
             } else {
-              figma.notify("Invalid padding value.", { error: true });
+              figma.notify("Invalid horizontal padding. Use 1 or 2 values separated by spaces or commas.", { error: true });
               figma.closePlugin();
               return;
             }
@@ -510,14 +556,17 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
           break;
         case 'setPaddingVertical':
           if ('paddingTop' in node && 'paddingBottom' in node) {
-            const num = parseFloat(value);
-            if (!isNaN(num) && num >= 0) {
-              (node as PaddingApplicableNode).paddingTop = num;
-              (node as PaddingApplicableNode).paddingBottom = num;
+            const parts = String(value).replace(/,/g, ' ').trim().split(/\s+/);
+            const numbers = parts.map(p => parseFloat(p)).filter(n => !isNaN(n));
+
+            if (numbers.length > 0 && numbers.length <= 2 && numbers.length === parts.length) {
+              const pNode = node as PaddingApplicableNode;
+              pNode.paddingTop = numbers[0];
+              pNode.paddingBottom = numbers.length === 2 ? numbers[1] : numbers[0];
               modifiedCount++;
-              notifyMessage = `Vertical padding set to ${num}`;
+              notifyMessage = `Vertical padding updated`;
             } else {
-              figma.notify("Invalid padding value.", { error: true });
+              figma.notify("Invalid vertical padding. Use 1 or 2 values separated by spaces or commas.", { error: true });
               figma.closePlugin();
               return;
             }
