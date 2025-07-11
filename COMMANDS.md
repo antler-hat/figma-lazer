@@ -1,6 +1,6 @@
 # Lazer Commands
 
-This plugin allows you to quickly adjust:
+> Pro tip: You can figure out your own shortcodes too, since Lazer relies on fuzzy search, not exact matches. For example, `br0` should work fine. And, since the fuzze search also considers the text _after_ the shortcode, per below, you can do things like `setheight` or `rightpad0`.
 
 ### Width & Height
 *   `w.h - Width to Hug`
