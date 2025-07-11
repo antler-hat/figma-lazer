@@ -4,6 +4,8 @@
 
 Lazer is a plugin for Figma that provides quick commands to adjust the layout and appearance properties of selected elements. [Find it in Figma Community here.](https://www.figma.com/community/plugin/1510266761765016786)
 
+👉 **[Find the full list of current commands here](./COMMANDS.md)**.
+
 Keyboard shortcuts are crucial for speed and efficiency, but Figma offers a pretty limited set and you can't customize them.
 
 Lazer proposes a decent workaround inspired by command line interfaces. It includes a number of common adjustments, each with a short code (see below). When you bring up the Actions input with command + K or command + / and then type a shortcode (eg. w.h), the fuzzy search will be ready to select that action.
@@ -16,7 +18,7 @@ Example: to set an element width to Hug, instead of leaving the keyboard I could
 
 Once you get familiar with these shortcodes, you can cut down the reliance on your mouse for adjusting style values.
 
-**[Find the full list of current commands](./COMMANDS.md)**.
+**Again, you can [find the full list of current commands here](./COMMANDS.md)**.
 
 ## Usage
 
