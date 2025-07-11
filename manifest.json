@@ -76,6 +76,10 @@
       "command": "borderRadius8"
     },
     {
+      "name": "br.16 - Border Radius to 16px",
+      "command": "borderRadius16"
+    },
+    {
       "name": "br.0 - Border Radius to 0px",
       "command": "borderRadius0"
     },

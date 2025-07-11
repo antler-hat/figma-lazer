@@ -1456,6 +1456,7 @@ const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Pro
   'pvert0': (sel) => setVerticalPaddingForSelection(0, sel),
   'borderRadius0': (sel) => setBorderRadiusForSelection(0, sel),
   'borderRadius8': (sel) => setBorderRadiusForSelection(8, sel),
+  'borderRadius16': (sel) => setBorderRadiusForSelection(16, sel),
   'stroke0': (sel) => setStrokeWeightForSelection(0, sel),
   'stroke1': (sel) => setStrokeWeightForSelection(1, sel),
   'fill0': handleFillRemoveAll,
