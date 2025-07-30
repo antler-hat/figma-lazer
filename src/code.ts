@@ -93,6 +93,143 @@ function isValidAutoLayoutNode(node: SceneNode): node is AutoLayoutNode {
   return (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET') && node.layoutMode !== 'NONE';
 }
 
+// Helper function to check if a node should use autolayout padding vs manual padding
+function shouldUseAutoLayoutPadding(node: SceneNode): boolean {
+  return (node.type === 'FRAME' || node.type === 'SECTION') && 
+         node.type === 'FRAME' && 
+         (node as FrameNode).layoutMode !== 'NONE';
+}
+
+// Helper function to check if a node is a valid non-autolayout frame or section
+function isValidNonAutoLayoutFrameOrSection(node: SceneNode): node is FrameNode | SectionNode {
+  return (node.type === 'FRAME' || node.type === 'SECTION') && 
+         (node.type === 'SECTION' || (node as FrameNode).layoutMode === 'NONE');
+}
+
+// Helper function to validate selection for non-autolayout padding
+function isValidSelectionForNonAutoLayoutPadding(targets: (FrameNode | SectionNode)[]): boolean {
+  if (targets.length === 0) {
+    return false;
+  }
+
+  for (const target of targets) {
+    if (target.type !== 'FRAME' && target.type !== 'SECTION') {
+      return false;
+    }
+
+    let parent: (BaseNode & ChildrenMixin) | null = target;
+    while (parent && parent.type !== 'PAGE') {
+      if (parent.type === 'INSTANCE') {
+        figma.notify('Your selection cannot be within an Instance.');
+        return false;
+      }
+      parent = parent.parent;
+    }
+  }
+
+  return true;
+}
+
+// Helper function to apply non-autolayout padding
+function applyNonAutoLayoutPadding(targets: (FrameNode | SectionNode)[], padding: number): void {
+  for (const frame of targets) {
+    if (!frame || frame.children.length === 0) {
+      continue;
+    }
+
+    let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
+
+    frame.children.forEach((child) => {
+      const childX = child.x;
+      const childY = child.y;
+      const childWidth = child.width;
+      const childHeight = child.height;
+
+      minX = Math.min(minX, childX);
+      minY = Math.min(minY, childY);
+      maxX = Math.max(maxX, childX + childWidth);
+      maxY = Math.max(maxY, childY + childHeight);
+    });
+
+    if (minX === Infinity) {
+      continue;
+    }
+
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+
+    const newWidth = contentWidth + 2 * padding;
+    const newHeight = contentHeight + 2 * padding;
+
+    if (frame.type === 'FRAME') {
+      frame.resize(newWidth, newHeight);
+    } else if (frame.type === 'SECTION') {
+      frame.resizeWithoutConstraints(newWidth, newHeight);
+    }
+
+    frame.children.forEach((child) => {
+      child.x = child.x - minX + padding;
+      child.y = child.y - minY + padding;
+    });
+  }
+}
+
+// Helper function to apply directional non-autolayout padding
+function applyNonAutoLayoutDirectionalPadding(
+  targets: (FrameNode | SectionNode)[], 
+  paddingTop: number, 
+  paddingRight: number, 
+  paddingBottom: number, 
+  paddingLeft: number
+): void {
+  for (const frame of targets) {
+    if (!frame || frame.children.length === 0) {
+      continue;
+    }
+
+    let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
+
+    frame.children.forEach((child) => {
+      const childX = child.x;
+      const childY = child.y;
+      const childWidth = child.width;
+      const childHeight = child.height;
+
+      minX = Math.min(minX, childX);
+      minY = Math.min(minY, childY);
+      maxX = Math.max(maxX, childX + childWidth);
+      maxY = Math.max(maxY, childY + childHeight);
+    });
+
+    if (minX === Infinity) {
+      continue;
+    }
+
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+
+    const newWidth = contentWidth + paddingLeft + paddingRight;
+    const newHeight = contentHeight + paddingTop + paddingBottom;
+
+    if (frame.type === 'FRAME') {
+      frame.resize(newWidth, newHeight);
+    } else if (frame.type === 'SECTION') {
+      frame.resizeWithoutConstraints(newWidth, newHeight);
+    }
+
+    frame.children.forEach((child) => {
+      child.x = child.x - minX + paddingLeft;
+      child.y = child.y - minY + paddingTop;
+    });
+  }
+}
+
 // --- START HELPER FUNCTIONS FOR PREFILLING INPUTS ---
 
 /**
@@ -465,16 +602,34 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
     try {
       switch (propertyType) {
         case 'setPadding': // Padding
-          if ('paddingLeft' in node && 'paddingRight' in node && 'paddingTop' in node && 'paddingBottom' in node) {
+          if (shouldUseAutoLayoutPadding(node)) {
+            // Use autolayout padding for frames with autolayout
+            if ('paddingLeft' in node && 'paddingRight' in node && 'paddingTop' in node && 'paddingBottom' in node) {
+              const padding = parsePaddingShorthand(value);
+              if (padding) {
+                const pNode = node as PaddingApplicableNode;
+                pNode.paddingTop = padding.top;
+                pNode.paddingRight = padding.right;
+                pNode.paddingBottom = padding.bottom;
+                pNode.paddingLeft = padding.left;
+                modifiedCount++;
+                notifyMessage = `Padding updated`;
+              } else {
+                figma.notify("Invalid padding. Use 1-4 comma-separated numbers.", { error: true });
+                figma.closePlugin();
+                return;
+              }
+            }
+          } else if (isValidNonAutoLayoutFrameOrSection(node)) {
+            // Use manual padding for non-autolayout frames/sections
             const padding = parsePaddingShorthand(value);
             if (padding) {
-              const pNode = node as PaddingApplicableNode;
-              pNode.paddingTop = padding.top;
-              pNode.paddingRight = padding.right;
-              pNode.paddingBottom = padding.bottom;
-              pNode.paddingLeft = padding.left;
-              modifiedCount++;
-              notifyMessage = `Padding updated`;
+              const targets = [node as FrameNode | SectionNode];
+              if (isValidSelectionForNonAutoLayoutPadding(targets)) {
+                applyNonAutoLayoutDirectionalPadding(targets, padding.top, padding.right, padding.bottom, padding.left);
+                modifiedCount++;
+                notifyMessage = `Padding applied`;
+              }
             } else {
               figma.notify("Invalid padding. Use 1-4 comma-separated numbers.", { error: true });
               figma.closePlugin();
@@ -483,12 +638,30 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
           }
           break;
         case 'setPaddingTop':
-          if ('paddingTop' in node) {
+          if (shouldUseAutoLayoutPadding(node)) {
+            // Use autolayout padding for frames with autolayout
+            if ('paddingTop' in node) {
+              const num = parseFloat(value);
+              if (!isNaN(num) && num >= 0) {
+                (node as PaddingApplicableNode).paddingTop = num;
+                modifiedCount++;
+                notifyMessage = `Top padding set to ${num}`;
+              } else {
+                figma.notify("Invalid padding value.", { error: true });
+                figma.closePlugin();
+                return;
+              }
+            }
+          } else if (isValidNonAutoLayoutFrameOrSection(node)) {
+            // For non-autolayout frames/sections, apply directional padding
             const num = parseFloat(value);
             if (!isNaN(num) && num >= 0) {
-              (node as PaddingApplicableNode).paddingTop = num;
-              modifiedCount++;
-              notifyMessage = `Top padding set to ${num}`;
+              const targets = [node as FrameNode | SectionNode];
+              if (isValidSelectionForNonAutoLayoutPadding(targets)) {
+                applyNonAutoLayoutDirectionalPadding(targets, num, 0, 0, 0);
+                modifiedCount++;
+                notifyMessage = `Top padding applied`;
+              }
             } else {
               figma.notify("Invalid padding value.", { error: true });
               figma.closePlugin();
@@ -497,12 +670,30 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
           }
           break;
         case 'setPaddingBottom':
-          if ('paddingBottom' in node) {
+          if (shouldUseAutoLayoutPadding(node)) {
+            // Use autolayout padding for frames with autolayout
+            if ('paddingBottom' in node) {
+              const num = parseFloat(value);
+              if (!isNaN(num) && num >= 0) {
+                (node as PaddingApplicableNode).paddingBottom = num;
+                modifiedCount++;
+                notifyMessage = `Bottom padding set to ${num}`;
+              } else {
+                figma.notify("Invalid padding value.", { error: true });
+                figma.closePlugin();
+                return;
+              }
+            }
+          } else if (isValidNonAutoLayoutFrameOrSection(node)) {
+            // For non-autolayout frames/sections, apply directional padding
             const num = parseFloat(value);
             if (!isNaN(num) && num >= 0) {
-              (node as PaddingApplicableNode).paddingBottom = num;
-              modifiedCount++;
-              notifyMessage = `Bottom padding set to ${num}`;
+              const targets = [node as FrameNode | SectionNode];
+              if (isValidSelectionForNonAutoLayoutPadding(targets)) {
+                applyNonAutoLayoutDirectionalPadding(targets, 0, 0, num, 0);
+                modifiedCount++;
+                notifyMessage = `Bottom padding applied`;
+              }
             } else {
               figma.notify("Invalid padding value.", { error: true });
               figma.closePlugin();
@@ -511,12 +702,30 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
           }
           break;
         case 'setPaddingLeft':
-          if ('paddingLeft' in node) {
+          if (shouldUseAutoLayoutPadding(node)) {
+            // Use autolayout padding for frames with autolayout
+            if ('paddingLeft' in node) {
+              const num = parseFloat(value);
+              if (!isNaN(num) && num >= 0) {
+                (node as PaddingApplicableNode).paddingLeft = num;
+                modifiedCount++;
+                notifyMessage = `Left padding set to ${num}`;
+              } else {
+                figma.notify("Invalid padding value.", { error: true });
+                figma.closePlugin();
+                return;
+              }
+            }
+          } else if (isValidNonAutoLayoutFrameOrSection(node)) {
+            // For non-autolayout frames/sections, apply directional padding
             const num = parseFloat(value);
             if (!isNaN(num) && num >= 0) {
-              (node as PaddingApplicableNode).paddingLeft = num;
-              modifiedCount++;
-              notifyMessage = `Left padding set to ${num}`;
+              const targets = [node as FrameNode | SectionNode];
+              if (isValidSelectionForNonAutoLayoutPadding(targets)) {
+                applyNonAutoLayoutDirectionalPadding(targets, 0, 0, 0, num);
+                modifiedCount++;
+                notifyMessage = `Left padding applied`;
+              }
             } else {
               figma.notify("Invalid padding value.", { error: true });
               figma.closePlugin();
@@ -525,12 +734,30 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
           }
           break;
         case 'setPaddingRight':
-          if ('paddingRight' in node) {
+          if (shouldUseAutoLayoutPadding(node)) {
+            // Use autolayout padding for frames with autolayout
+            if ('paddingRight' in node) {
+              const num = parseFloat(value);
+              if (!isNaN(num) && num >= 0) {
+                (node as PaddingApplicableNode).paddingRight = num;
+                modifiedCount++;
+                notifyMessage = `Right padding set to ${num}`;
+              } else {
+                figma.notify("Invalid padding value.", { error: true });
+                figma.closePlugin();
+                return;
+              }
+            }
+          } else if (isValidNonAutoLayoutFrameOrSection(node)) {
+            // For non-autolayout frames/sections, apply directional padding
             const num = parseFloat(value);
             if (!isNaN(num) && num >= 0) {
-              (node as PaddingApplicableNode).paddingRight = num;
-              modifiedCount++;
-              notifyMessage = `Right padding set to ${num}`;
+              const targets = [node as FrameNode | SectionNode];
+              if (isValidSelectionForNonAutoLayoutPadding(targets)) {
+                applyNonAutoLayoutDirectionalPadding(targets, 0, num, 0, 0);
+                modifiedCount++;
+                notifyMessage = `Right padding applied`;
+              }
             } else {
               figma.notify("Invalid padding value.", { error: true });
               figma.closePlugin();
@@ -539,17 +766,40 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
           }
           break;
         case 'setPaddingHorizontal':
-          if ('paddingLeft' in node && 'paddingRight' in node) {
+          if (shouldUseAutoLayoutPadding(node)) {
+            // Use autolayout padding for frames with autolayout
+            if ('paddingLeft' in node && 'paddingRight' in node) {
+              const standardizedValue = String(value).replace(/,/g, ' ');
+              const parts = standardizedValue.trim().split(/\s+/);
+              const numbers = parts.map(p => parseFloat(p)).filter(n => !isNaN(n));
+
+              if (numbers.length > 0 && numbers.length <= 2 && numbers.length === parts.length) {
+                const pNode = node as PaddingApplicableNode;
+                pNode.paddingLeft = numbers[0];
+                pNode.paddingRight = numbers.length === 2 ? numbers[1] : numbers[0];
+                modifiedCount++;
+                notifyMessage = `Horizontal padding updated`;
+              } else {
+                figma.notify("Invalid horizontal padding. Use 1 or 2 comma-separated numbers.", { error: true });
+                figma.closePlugin();
+                return;
+              }
+            }
+          } else if (isValidNonAutoLayoutFrameOrSection(node)) {
+            // For non-autolayout frames/sections, apply directional padding
             const standardizedValue = String(value).replace(/,/g, ' ');
             const parts = standardizedValue.trim().split(/\s+/);
             const numbers = parts.map(p => parseFloat(p)).filter(n => !isNaN(n));
 
             if (numbers.length > 0 && numbers.length <= 2 && numbers.length === parts.length) {
-              const pNode = node as PaddingApplicableNode;
-              pNode.paddingLeft = numbers[0];
-              pNode.paddingRight = numbers.length === 2 ? numbers[1] : numbers[0];
-              modifiedCount++;
-              notifyMessage = `Horizontal padding updated`;
+              const targets = [node as FrameNode | SectionNode];
+              if (isValidSelectionForNonAutoLayoutPadding(targets)) {
+                const leftPadding = numbers[0];
+                const rightPadding = numbers.length === 2 ? numbers[1] : numbers[0];
+                applyNonAutoLayoutDirectionalPadding(targets, 0, rightPadding, 0, leftPadding);
+                modifiedCount++;
+                notifyMessage = `Horizontal padding applied`;
+              }
             } else {
               figma.notify("Invalid horizontal padding. Use 1 or 2 comma-separated numbers.", { error: true });
               figma.closePlugin();
@@ -558,17 +808,40 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
           }
           break;
         case 'setPaddingVertical':
-          if ('paddingTop' in node && 'paddingBottom' in node) {
+          if (shouldUseAutoLayoutPadding(node)) {
+            // Use autolayout padding for frames with autolayout
+            if ('paddingTop' in node && 'paddingBottom' in node) {
+              const standardizedValue = String(value).replace(/,/g, ' ');
+              const parts = standardizedValue.trim().split(/\s+/);
+              const numbers = parts.map(p => parseFloat(p)).filter(n => !isNaN(n));
+
+              if (numbers.length > 0 && numbers.length <= 2 && numbers.length === parts.length) {
+                const pNode = node as PaddingApplicableNode;
+                pNode.paddingTop = numbers[0];
+                pNode.paddingBottom = numbers.length === 2 ? numbers[1] : numbers[0];
+                modifiedCount++;
+                notifyMessage = `Vertical padding updated`;
+              } else {
+                figma.notify("Invalid vertical padding. Use 1 or 2 comma-separated numbers.", { error: true });
+                figma.closePlugin();
+                return;
+              }
+            }
+          } else if (isValidNonAutoLayoutFrameOrSection(node)) {
+            // For non-autolayout frames/sections, apply directional padding
             const standardizedValue = String(value).replace(/,/g, ' ');
             const parts = standardizedValue.trim().split(/\s+/);
             const numbers = parts.map(p => parseFloat(p)).filter(n => !isNaN(n));
 
             if (numbers.length > 0 && numbers.length <= 2 && numbers.length === parts.length) {
-              const pNode = node as PaddingApplicableNode;
-              pNode.paddingTop = numbers[0];
-              pNode.paddingBottom = numbers.length === 2 ? numbers[1] : numbers[0];
-              modifiedCount++;
-              notifyMessage = `Vertical padding updated`;
+              const targets = [node as FrameNode | SectionNode];
+              if (isValidSelectionForNonAutoLayoutPadding(targets)) {
+                const topPadding = numbers[0];
+                const bottomPadding = numbers.length === 2 ? numbers[1] : numbers[0];
+                applyNonAutoLayoutDirectionalPadding(targets, topPadding, 0, bottomPadding, 0);
+                modifiedCount++;
+                notifyMessage = `Vertical padding applied`;
+              }
             } else {
               figma.notify("Invalid vertical padding. Use 1 or 2 comma-separated numbers.", { error: true });
               figma.closePlugin();
@@ -1258,13 +1531,23 @@ function setPaddingForSelection(paddingValue: number, selection: readonly SceneN
   if (!ensureSelection(selection, `Set Padding to ${paddingValue}`)) return;
   let modifiedCount = 0;
   for (const node of selection) {
-    if ('paddingTop' in node && 'paddingBottom' in node && 'paddingLeft' in node && 'paddingRight' in node) {
-      const paddedNode = node as PaddingApplicableNode;
-      paddedNode.paddingTop = paddingValue;
-      paddedNode.paddingBottom = paddingValue;
-      paddedNode.paddingLeft = paddingValue;
-      paddedNode.paddingRight = paddingValue;
-      modifiedCount++;
+    if (shouldUseAutoLayoutPadding(node)) {
+      // Use autolayout padding for frames with autolayout
+      if ('paddingTop' in node && 'paddingBottom' in node && 'paddingLeft' in node && 'paddingRight' in node) {
+        const paddedNode = node as PaddingApplicableNode;
+        paddedNode.paddingTop = paddingValue;
+        paddedNode.paddingBottom = paddingValue;
+        paddedNode.paddingLeft = paddingValue;
+        paddedNode.paddingRight = paddingValue;
+        modifiedCount++;
+      }
+    } else if (isValidNonAutoLayoutFrameOrSection(node)) {
+      // Use manual padding for non-autolayout frames/sections
+      const targets = [node as FrameNode | SectionNode];
+      if (isValidSelectionForNonAutoLayoutPadding(targets)) {
+        applyNonAutoLayoutPadding(targets, paddingValue);
+        modifiedCount++;
+      }
     }
   }
   if (modifiedCount > 0) figma.notify(`Padding set to ${paddingValue} for ${modifiedCount} layer(s).`);
