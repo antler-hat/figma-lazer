@@ -130,12 +130,65 @@ function isValidSelectionForNonAutoLayoutPadding(targets: (FrameNode | SectionNo
   return true;
 }
 
-// Helper function to apply non-autolayout padding
+// --- START CONSTRAINT PRESERVATION SYSTEM ---
+interface SavedConstraints {
+  id: string;
+  horizontal: ConstraintType;
+  vertical: ConstraintType;
+}
+
+// Helper function to preserve and set constraints to MIN
+function preserveAndSetConstraints(frame: FrameNode | SectionNode): SavedConstraints[] {
+  const savedConstraints: SavedConstraints[] = [];
+  
+  for (const child of frame.children) {
+    // Only process children that have constraints property
+    if ('constraints' in child) {
+      const constrainedChild = child as SceneNode & { constraints: Constraints };
+      savedConstraints.push({
+        id: child.id,
+        horizontal: constrainedChild.constraints.horizontal,
+        vertical: constrainedChild.constraints.vertical
+      });
+      
+      // Set both constraints to MIN to prevent scaling during frame resize
+      constrainedChild.constraints = {
+        horizontal: 'MIN',
+        vertical: 'MIN'
+      };
+    }
+  }
+  
+  return savedConstraints;
+}
+
+// Helper function to restore original constraints
+function restoreConstraints(frame: FrameNode | SectionNode, savedConstraints: SavedConstraints[]): void {
+  for (const child of frame.children) {
+    if ('constraints' in child) {
+      const constrainedChild = child as SceneNode & { constraints: Constraints };
+      const savedConstraint = savedConstraints.find(saved => saved.id === child.id);
+      
+      if (savedConstraint) {
+        constrainedChild.constraints = {
+          horizontal: savedConstraint.horizontal,
+          vertical: savedConstraint.vertical
+        };
+      }
+    }
+  }
+}
+// --- END CONSTRAINT PRESERVATION SYSTEM ---
+
+// Helper function to apply non-autolayout padding with constraint preservation
 function applyNonAutoLayoutPadding(targets: (FrameNode | SectionNode)[], padding: number): void {
   for (const frame of targets) {
     if (!frame || frame.children.length === 0) {
       continue;
     }
+
+    // Preserve and set constraints to MIN to prevent scaling
+    const savedConstraints = preserveAndSetConstraints(frame);
 
     let minX = Infinity,
         minY = Infinity,
@@ -155,6 +208,8 @@ function applyNonAutoLayoutPadding(targets: (FrameNode | SectionNode)[], padding
     });
 
     if (minX === Infinity) {
+      // Restore constraints even if we continue early
+      restoreConstraints(frame, savedConstraints);
       continue;
     }
 
@@ -174,10 +229,13 @@ function applyNonAutoLayoutPadding(targets: (FrameNode | SectionNode)[], padding
       child.x = child.x - minX + padding;
       child.y = child.y - minY + padding;
     });
+
+    // Restore original constraints after frame resize and child repositioning
+    restoreConstraints(frame, savedConstraints);
   }
 }
 
-// Helper function to apply directional non-autolayout padding
+// Helper function to apply directional non-autolayout padding with constraint preservation
 function applyNonAutoLayoutDirectionalPadding(
   targets: (FrameNode | SectionNode)[], 
   paddingTop: number, 
@@ -189,6 +247,9 @@ function applyNonAutoLayoutDirectionalPadding(
     if (!frame || frame.children.length === 0) {
       continue;
     }
+
+    // Preserve and set constraints to MIN to prevent scaling
+    const savedConstraints = preserveAndSetConstraints(frame);
 
     let minX = Infinity,
         minY = Infinity,
@@ -208,6 +269,8 @@ function applyNonAutoLayoutDirectionalPadding(
     });
 
     if (minX === Infinity) {
+      // Restore constraints even if we continue early
+      restoreConstraints(frame, savedConstraints);
       continue;
     }
 
@@ -227,6 +290,9 @@ function applyNonAutoLayoutDirectionalPadding(
       child.x = child.x - minX + paddingLeft;
       child.y = child.y - minY + paddingTop;
     });
+
+    // Restore original constraints after frame resize and child repositioning
+    restoreConstraints(frame, savedConstraints);
   }
 }
 
