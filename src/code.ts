@@ -190,21 +190,32 @@ function applyNonAutoLayoutPadding(targets: (FrameNode | SectionNode)[], padding
     // Preserve and set constraints to MIN to prevent scaling
     const savedConstraints = preserveAndSetConstraints(frame);
 
+    const frameAbsolute = frame.absoluteBoundingBox;
+    if (!frameAbsolute) {
+      // Restore constraints even if we continue early
+      restoreConstraints(frame, savedConstraints);
+      continue;
+    }
+
     let minX = Infinity,
         minY = Infinity,
         maxX = -Infinity,
         maxY = -Infinity;
 
     frame.children.forEach((child) => {
-      const childX = child.x;
-      const childY = child.y;
-      const childWidth = child.width;
-      const childHeight = child.height;
+      const childAbsolute = child.absoluteBoundingBox;
+      if (!childAbsolute) return;
 
-      minX = Math.min(minX, childX);
-      minY = Math.min(minY, childY);
-      maxX = Math.max(maxX, childX + childWidth);
-      maxY = Math.max(maxY, childY + childHeight);
+      // Convert absolute coordinates to frame-relative coordinates
+      const relativeX = childAbsolute.x - frameAbsolute.x;
+      const relativeY = childAbsolute.y - frameAbsolute.y;
+      const relativeMaxX = relativeX + childAbsolute.width;
+      const relativeMaxY = relativeY + childAbsolute.height;
+
+      minX = Math.min(minX, relativeX);
+      minY = Math.min(minY, relativeY);
+      maxX = Math.max(maxX, relativeMaxX);
+      maxY = Math.max(maxY, relativeMaxY);
     });
 
     if (minX === Infinity) {
@@ -235,6 +246,50 @@ function applyNonAutoLayoutPadding(targets: (FrameNode | SectionNode)[], padding
   }
 }
 
+// Helper function to get current effective padding for a frame
+function getCurrentEffectivePadding(frame: FrameNode | SectionNode): { top: number; right: number; bottom: number; left: number } {
+  if (!frame || frame.children.length === 0) {
+    return { top: 0, right: 0, bottom: 0, left: 0 };
+  }
+
+  const frameAbsolute = frame.absoluteBoundingBox;
+  if (!frameAbsolute) {
+    return { top: 0, right: 0, bottom: 0, left: 0 };
+  }
+
+  let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+
+  frame.children.forEach((child) => {
+    const childAbsolute = child.absoluteBoundingBox;
+    if (!childAbsolute) return;
+
+    // Convert absolute coordinates to frame-relative coordinates
+    const relativeX = childAbsolute.x - frameAbsolute.x;
+    const relativeY = childAbsolute.y - frameAbsolute.y;
+    const relativeMaxX = relativeX + childAbsolute.width;
+    const relativeMaxY = relativeY + childAbsolute.height;
+
+    minX = Math.min(minX, relativeX);
+    minY = Math.min(minY, relativeY);
+    maxX = Math.max(maxX, relativeMaxX);
+    maxY = Math.max(maxY, relativeMaxY);
+  });
+
+  if (minX === Infinity) {
+    return { top: 0, right: 0, bottom: 0, left: 0 };
+  }
+
+  return {
+    top: minY,
+    right: frame.width - maxX,
+    bottom: frame.height - maxY,
+    left: minX
+  };
+}
+
 // Helper function to apply directional non-autolayout padding with constraint preservation
 function applyNonAutoLayoutDirectionalPadding(
   targets: (FrameNode | SectionNode)[], 
@@ -251,21 +306,32 @@ function applyNonAutoLayoutDirectionalPadding(
     // Preserve and set constraints to MIN to prevent scaling
     const savedConstraints = preserveAndSetConstraints(frame);
 
+    const frameAbsolute = frame.absoluteBoundingBox;
+    if (!frameAbsolute) {
+      // Restore constraints even if we continue early
+      restoreConstraints(frame, savedConstraints);
+      continue;
+    }
+
     let minX = Infinity,
         minY = Infinity,
         maxX = -Infinity,
         maxY = -Infinity;
 
     frame.children.forEach((child) => {
-      const childX = child.x;
-      const childY = child.y;
-      const childWidth = child.width;
-      const childHeight = child.height;
+      const childAbsolute = child.absoluteBoundingBox;
+      if (!childAbsolute) return;
 
-      minX = Math.min(minX, childX);
-      minY = Math.min(minY, childY);
-      maxX = Math.max(maxX, childX + childWidth);
-      maxY = Math.max(maxY, childY + childHeight);
+      // Convert absolute coordinates to frame-relative coordinates
+      const relativeX = childAbsolute.x - frameAbsolute.x;
+      const relativeY = childAbsolute.y - frameAbsolute.y;
+      const relativeMaxX = relativeX + childAbsolute.width;
+      const relativeMaxY = relativeY + childAbsolute.height;
+
+      minX = Math.min(minX, relativeX);
+      minY = Math.min(minY, relativeY);
+      maxX = Math.max(maxX, relativeMaxX);
+      maxY = Math.max(maxY, relativeMaxY);
     });
 
     if (minX === Infinity) {
@@ -719,12 +785,13 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
               }
             }
           } else if (isValidNonAutoLayoutFrameOrSection(node)) {
-            // For non-autolayout frames/sections, apply directional padding
+            // For non-autolayout frames/sections, preserve other sides and only change top
             const num = parseFloat(value);
             if (!isNaN(num) && num >= 0) {
               const targets = [node as FrameNode | SectionNode];
               if (isValidSelectionForNonAutoLayoutPadding(targets)) {
-                applyNonAutoLayoutDirectionalPadding(targets, num, 0, 0, 0);
+                const currentPadding = getCurrentEffectivePadding(node as FrameNode | SectionNode);
+                applyNonAutoLayoutDirectionalPadding(targets, num, currentPadding.right, currentPadding.bottom, currentPadding.left);
                 modifiedCount++;
                 notifyMessage = `Top padding applied`;
               }
@@ -751,12 +818,13 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
               }
             }
           } else if (isValidNonAutoLayoutFrameOrSection(node)) {
-            // For non-autolayout frames/sections, apply directional padding
+            // For non-autolayout frames/sections, preserve other sides and only change bottom
             const num = parseFloat(value);
             if (!isNaN(num) && num >= 0) {
               const targets = [node as FrameNode | SectionNode];
               if (isValidSelectionForNonAutoLayoutPadding(targets)) {
-                applyNonAutoLayoutDirectionalPadding(targets, 0, 0, num, 0);
+                const currentPadding = getCurrentEffectivePadding(node as FrameNode | SectionNode);
+                applyNonAutoLayoutDirectionalPadding(targets, currentPadding.top, currentPadding.right, num, currentPadding.left);
                 modifiedCount++;
                 notifyMessage = `Bottom padding applied`;
               }
@@ -783,12 +851,13 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
               }
             }
           } else if (isValidNonAutoLayoutFrameOrSection(node)) {
-            // For non-autolayout frames/sections, apply directional padding
+            // For non-autolayout frames/sections, preserve other sides and only change left
             const num = parseFloat(value);
             if (!isNaN(num) && num >= 0) {
               const targets = [node as FrameNode | SectionNode];
               if (isValidSelectionForNonAutoLayoutPadding(targets)) {
-                applyNonAutoLayoutDirectionalPadding(targets, 0, 0, 0, num);
+                const currentPadding = getCurrentEffectivePadding(node as FrameNode | SectionNode);
+                applyNonAutoLayoutDirectionalPadding(targets, currentPadding.top, currentPadding.right, currentPadding.bottom, num);
                 modifiedCount++;
                 notifyMessage = `Left padding applied`;
               }
@@ -815,12 +884,13 @@ async function handleSubmitValue(msg: any, selection: readonly SceneNode[]) {
               }
             }
           } else if (isValidNonAutoLayoutFrameOrSection(node)) {
-            // For non-autolayout frames/sections, apply directional padding
+            // For non-autolayout frames/sections, preserve other sides and only change right
             const num = parseFloat(value);
             if (!isNaN(num) && num >= 0) {
               const targets = [node as FrameNode | SectionNode];
               if (isValidSelectionForNonAutoLayoutPadding(targets)) {
-                applyNonAutoLayoutDirectionalPadding(targets, 0, num, 0, 0);
+                const currentPadding = getCurrentEffectivePadding(node as FrameNode | SectionNode);
+                applyNonAutoLayoutDirectionalPadding(targets, currentPadding.top, num, currentPadding.bottom, currentPadding.left);
                 modifiedCount++;
                 notifyMessage = `Right padding applied`;
               }
