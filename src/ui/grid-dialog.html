@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Grid</title>
+    <style>
+        body {
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, "system-ui", "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, SFProLocalRange;
+            margin: 0;
+            background-color: var(--figma-color-bg);
+            color: var(--figma-color-text-secondary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            padding: 10px;
+            box-sizing: border-box;
+            font-size: 11px;
+            gap: 8px;
+        }
+
+        .input-container {
+            width: calc(100% - 20px);
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .input-label {
+            font-size: 10px;
+            color: var(--figma-color-text-secondary);
+            margin-left: 2px;
+            width: 60px;
+        }
+
+        .grid-input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid var(--figma-color-border);
+            background-color: var(--figma-color-bg-secondary);
+            color: var(--figma-color-text-secondary);
+            font-size: 11px;
+            box-sizing: border-box;
+        }
+
+        .grid-input:focus {
+            outline: 2px solid var(--figma-color-bg-brand);
+            outline-offset: 0px;
+            border-color: var(--figma-color-bg-brand-tertiary);
+        }
+    </style>
+</head>
+<body>
+    <div class="input-container">
+        <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="var(--figma-color-text-secondary)"><path d="M216-528q-33 0-52.5-19.5T144-600v-144q0-33 19.5-52.5T216-816h528q33 0 52.5 19.5T816-744v144q0 33-19.5 52.5T744-528H216Zm0-72h528v-144H216v144Zm0 456q-33 0-52.5-19.5T144-216v-144q0-33 19.5-52.5T216-432h528q33 0 52.5 19.5T816-360v144q0 33-19.5 52.5T744-144H216Zm0-72h528v-144H216v144Zm0-384v-144 144Zm0 384v-144 144Z"/></svg>
+        <div class="input-label">Rows</div>
+        <input type="number" id="rows-input" class="grid-input" min="1" value="1">
+    </div>
+    <div class="input-container">
+        <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="var(--figma-color-text-secondary)"><path d="M600-144q-29.7 0-50.85-21.15Q528-186.3 528-216v-528q0-29 21.15-50.5T600-816h144q29 0 50.5 21.5T816-744v528q0 29.7-21.5 50.85Q773-144 744-144H600Zm0-600v528h144v-528H600ZM216-144q-29.7 0-50.85-21.15Q144-186.3 144-216v-528q0-29 21.15-50.5T216-816h144q29 0 50.5 21.5T432-744v528q0 29.7-21.5 50.85Q389-144 360-144H216Zm0-600v528h144v-528H216Zm528 0H600h144Zm-384 0H216h144Z"/></svg>
+        <div class="input-label">Columns</div>
+        <input type="number" id="columns-input" class="grid-input" min="1" value="1">
+    </div>
+
+    <script>
+        const rowsInput = document.getElementById('rows-input');
+        const columnsInput = document.getElementById('columns-input');
+
+        // Focus the rows input field when the UI is shown
+        rowsInput.focus();
+        rowsInput.select();
+
+        window.onmessage = (event) => {
+            const message = event.data.pluginMessage;
+            if (message && message.type === 'init-grid-dialog') {
+                if (message.currentRows !== undefined && message.currentRows !== null) {
+                    rowsInput.value = String(message.currentRows);
+                }
+                if (message.currentColumns !== undefined && message.currentColumns !== null) {
+                    columnsInput.value = String(message.currentColumns);
+                }
+                rowsInput.focus();
+                rowsInput.select();
+            }
+        };
+
+        function submitGrid() {
+            const rows = parseInt(rowsInput.value);
+            const columns = parseInt(columnsInput.value);
+
+            if (isNaN(rows) || rows < 1 || isNaN(columns) || columns < 1) {
+                // Invalid input, don't submit
+                return;
+            }
+
+            parent.postMessage({
+                pluginMessage: {
+                    type: 'submit-grid',
+                    rows: rows,
+                    columns: columns
+                }
+            }, '*');
+        }
+
+        function closeDialog() {
+            parent.postMessage({ pluginMessage: { type: 'close-plugin' } }, '*');
+        }
+
+        // Handle keyboard events for both inputs
+        [rowsInput, columnsInput].forEach(input => {
+            input.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    submitGrid();
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeDialog();
+                } else if (event.key === 'Tab') {
+                    // Allow default tab behavior for navigation between inputs
+                }
+            });
+        });
+
+        // Allow tab navigation between inputs
+        rowsInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Tab' && !event.shiftKey) {
+                event.preventDefault();
+                columnsInput.focus();
+                columnsInput.select();
+            }
+        });
+
+        columnsInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Tab' && event.shiftKey) {
+                event.preventDefault();
+                rowsInput.focus();
+                rowsInput.select();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -6,6 +6,7 @@ console.log('Figma command:', figma.command);
 import inputDialogHtmlContent from './ui/input-dialog.html';
 import autoAlignmentControlHtmlContent from './ui/auto-alignment-control.html';
 import helpDialogHtmlContent from './ui/help-dialog.html';
+import gridDialogHtmlContent from './ui/grid-dialog.html';
 
 // --- START TYPE ALIASES ---
 type ApplicableNode = FrameNode | ComponentNode | ComponentSetNode | InstanceNode | TextNode | RectangleNode | EllipseNode | PolygonNode | StarNode | LineNode | VectorNode;
@@ -1407,6 +1408,48 @@ function handleSetStrokeFromUIAA(msg: any, selection: readonly SceneNode[]) {
 }
 // --- END UI MESSAGE SUB-HANDLERS for Auto-Alignment (AA) ---
 
+// --- START UI MESSAGE SUB-HANDLER for submit-grid ---
+async function handleSubmitGrid(msg: any, selection: readonly SceneNode[]) {
+  const rows = msg.rows;
+  const columns = msg.columns;
+  let modifiedCount = 0;
+
+  if (!ensureSelection(selection, 'Set Grid')) return;
+
+  // Check if rows and columns are valid
+  if (!Number.isInteger(rows) || !Number.isInteger(columns) || rows < 1 || columns < 1) {
+    figma.notify("Invalid grid values. Rows and columns must be positive integers.", { error: true });
+    figma.closePlugin();
+    return;
+  }
+
+  for (const node of selection) {
+    // Grid can be applied to frames, components, instances, and component sets
+    if (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET') {
+      try {
+        const gridNode = node as FrameNode | ComponentNode | InstanceNode | ComponentSetNode;
+        
+        // Set the grid properties using type assertion to access grid properties
+        (gridNode as any).gridRowCount = rows;
+        (gridNode as any).gridColumnCount = columns;
+        
+        modifiedCount++;
+      } catch (e) {
+        console.error(`Error setting grid for ${node.name}:`, e);
+        figma.notify(`Error setting grid for "${node.name}": ${(e as Error).message}`, { error: true });
+      }
+    }
+  }
+
+  if (modifiedCount > 0) {
+    figma.notify(`Grid set to ${rows} rows × ${columns} columns for ${modifiedCount} layer(s).`);
+  } else if (selection.length > 0) {
+    figma.notify('Grid is only applicable to Frames, Components, Instances, and Component Sets.', { timeout: 3000 });
+  }
+  
+  figma.closePlugin();
+}
+// --- END UI MESSAGE SUB-HANDLER for submit-grid ---
 
 // Centralized UI message handler
 figma.ui.onmessage = async msg => { // Made async
@@ -1435,6 +1478,9 @@ figma.ui.onmessage = async msg => { // Made async
       break;
     case 'set-stroke':
       handleSetStrokeFromUIAA(msg, selection);
+      break;
+    case 'submit-grid':
+      await handleSubmitGrid(msg, selection);
       break;
     default:
       console.log('Unknown message type from UI:', msg.type);
@@ -2117,6 +2163,17 @@ figma.on('run', async ({ command, parameters }: RunEvent) => {
       const commonLetterSpacing = getCommonLetterSpacingValue(textNodes);
       figma.showUI(inputDialogHtmlContent, { themeColors: true, width: 250, height: 100, title: "Set Letter Spacing" });
       figma.ui.postMessage({ type: 'init-input-dialog', propertyType: 'setTextLetterSpacing', title: 'Set Letter Spacing (e.g., 2px or 5%)', currentValue: commonLetterSpacing });
+    }
+  } else if (command === 'setGrid') {
+    if (!ensureSelection(selection, 'Set Grid')) return;
+    const isGridApplicable = (node: SceneNode): boolean => 
+      node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET';
+    if (!selection.some(isGridApplicable)) {
+      figma.notify("Grid is only applicable to Frames, Components, Instances, and Component Sets.", { error: true, timeout: 3000 });
+      figma.closePlugin();
+    } else {
+      figma.showUI(gridDialogHtmlContent, { themeColors: true, width: 280, height: 140, title: "Set Grid" });
+      figma.ui.postMessage({ type: 'init-grid-dialog' });
     }
   } else if (command) {
     console.log("Unknown or unhandled command, closing plugin:", command);

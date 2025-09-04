@@ -306,11 +306,16 @@
           "allowFreeform": true
         }
       ]
+    },
+    {
+      "name": "grid.. - Set Grid",
+      "command": "setGrid"
     }
   ],
   "ui": {
     "inputDialog": "src/ui/input-dialog.html",
     "autoAlignmentControl": "src/ui/auto-alignment-control.html",
-    "helpDialog": "src/ui/help-dialog.html"
+    "helpDialog": "src/ui/help-dialog.html",
+    "gridDialog": "src/ui/grid-dialog.html"
   }
 }
