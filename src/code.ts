@@ -95,25 +95,32 @@ function isValidAutoLayoutNode(node: SceneNode): node is AutoLayoutNode {
 
 // Helper function to check if a node should use autolayout padding vs manual padding
 function shouldUseAutoLayoutPadding(node: SceneNode): boolean {
-  return (node.type === 'FRAME' || node.type === 'SECTION') && 
-         node.type === 'FRAME' && 
-         (node as FrameNode).layoutMode !== 'NONE';
+  return (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'COMPONENT_SET' || node.type === 'INSTANCE') && 
+         'layoutMode' in node &&
+         (node as FrameNode | ComponentNode | ComponentSetNode | InstanceNode).layoutMode !== 'NONE';
 }
 
-// Helper function to check if a node is a valid non-autolayout frame or section
-function isValidNonAutoLayoutFrameOrSection(node: SceneNode): node is FrameNode | SectionNode {
-  return (node.type === 'FRAME' || node.type === 'SECTION') && 
-         (node.type === 'SECTION' || (node as FrameNode).layoutMode === 'NONE');
+// Helper function to check if a node is a valid non-autolayout frame, section, or component
+function isValidNonAutoLayoutFrameOrSection(node: SceneNode): node is FrameNode | SectionNode | ComponentNode | ComponentSetNode | InstanceNode {
+  return (node.type === 'FRAME' || node.type === 'SECTION' || node.type === 'COMPONENT' || node.type === 'COMPONENT_SET' || node.type === 'INSTANCE') && 
+         (node.type === 'SECTION' || 
+          ('layoutMode' in node && (node as FrameNode | ComponentNode | ComponentSetNode | InstanceNode).layoutMode === 'NONE'));
 }
 
 // Helper function to validate selection for non-autolayout padding
-function isValidSelectionForNonAutoLayoutPadding(targets: (FrameNode | SectionNode)[]): boolean {
+function isValidSelectionForNonAutoLayoutPadding(targets: (FrameNode | SectionNode | ComponentNode | ComponentSetNode | InstanceNode)[]): boolean {
   if (targets.length === 0) {
     return false;
   }
 
   for (const target of targets) {
-    if (target.type !== 'FRAME' && target.type !== 'SECTION') {
+    if (target.type !== 'FRAME' && target.type !== 'SECTION' && target.type !== 'COMPONENT' && target.type !== 'COMPONENT_SET' && target.type !== 'INSTANCE') {
+      return false;
+    }
+
+    // Check for remote (read-only) components
+    if ((target.type === 'COMPONENT' || target.type === 'COMPONENT_SET') && 'remote' in target && target.remote) {
+      figma.notify(`"${target.name}" is a remote component from team library and cannot be modified.`, { error: true, timeout: 3000 });
       return false;
     }
 
@@ -138,7 +145,7 @@ interface SavedConstraints {
 }
 
 // Helper function to preserve and set constraints to MIN
-function preserveAndSetConstraints(frame: FrameNode | SectionNode): SavedConstraints[] {
+function preserveAndSetConstraints(frame: FrameNode | SectionNode | ComponentNode | ComponentSetNode | InstanceNode): SavedConstraints[] {
   const savedConstraints: SavedConstraints[] = [];
   
   for (const child of frame.children) {
@@ -163,7 +170,7 @@ function preserveAndSetConstraints(frame: FrameNode | SectionNode): SavedConstra
 }
 
 // Helper function to restore original constraints
-function restoreConstraints(frame: FrameNode | SectionNode, savedConstraints: SavedConstraints[]): void {
+function restoreConstraints(frame: FrameNode | SectionNode | ComponentNode | ComponentSetNode | InstanceNode, savedConstraints: SavedConstraints[]): void {
   for (const child of frame.children) {
     if ('constraints' in child) {
       const constrainedChild = child as SceneNode & { constraints: Constraints };
@@ -181,7 +188,7 @@ function restoreConstraints(frame: FrameNode | SectionNode, savedConstraints: Sa
 // --- END CONSTRAINT PRESERVATION SYSTEM ---
 
 // Helper function to apply non-autolayout padding with constraint preservation
-function applyNonAutoLayoutPadding(targets: (FrameNode | SectionNode)[], padding: number): void {
+function applyNonAutoLayoutPadding(targets: (FrameNode | SectionNode | ComponentNode | ComponentSetNode | InstanceNode)[], padding: number): void {
   for (const frame of targets) {
     if (!frame || frame.children.length === 0) {
       continue;
@@ -292,7 +299,7 @@ function getCurrentEffectivePadding(frame: FrameNode | SectionNode): { top: numb
 
 // Helper function to apply directional non-autolayout padding with constraint preservation
 function applyNonAutoLayoutDirectionalPadding(
-  targets: (FrameNode | SectionNode)[], 
+  targets: (FrameNode | SectionNode | ComponentNode | ComponentSetNode | InstanceNode)[], 
   paddingTop: number, 
   paddingRight: number, 
   paddingBottom: number, 
