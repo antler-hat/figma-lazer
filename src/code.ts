@@ -1866,6 +1866,35 @@ function setAutoLayoutDirection(direction: 'HORIZONTAL' | 'VERTICAL', selection:
   figma.closePlugin();
 }
 
+function setAutoLayoutAlignment(alignmentIndex: number, alignmentName: string, selection: readonly SceneNode[]) {
+  if (!ensureSelection(selection, `Set Auto Layout to ${alignmentName}`)) return;
+  let modifiedCount = 0;
+  const [uiPrimary, uiCounter] = alignmentMap[alignmentIndex];
+  
+  for (const node of selection) {
+    if (isValidAutoLayoutNode(node)) {
+      let finalPrimaryAlign: AutoLayoutNode['primaryAxisAlignItems'];
+      let finalCounterAlign: AutoLayoutNode['counterAxisAlignItems'];
+      
+      if (node.layoutMode === 'VERTICAL') {
+        finalPrimaryAlign = uiCounter;
+        finalCounterAlign = uiPrimary;
+      } else {
+        finalPrimaryAlign = uiPrimary;
+        finalCounterAlign = uiCounter;
+      }
+      
+      node.primaryAxisAlignItems = finalPrimaryAlign;
+      node.counterAxisAlignItems = finalCounterAlign;
+      modifiedCount++;
+    }
+  }
+  
+  if (modifiedCount > 0) figma.notify(`Auto Layout alignment set to ${alignmentName} for ${modifiedCount} layer(s).`);
+  else if (selection.length > 0) figma.notify(`No applicable Auto Layout layers found.`, { timeout: 2000});
+  figma.closePlugin();
+}
+
 
 const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Promise<void> | void } = {
   'widthHug': handleWidthHug,
@@ -1893,6 +1922,15 @@ const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Pro
   'gap16': (sel) => setGapForSelection(16, sel),
   'aLayoutHorizontal': (sel) => setAutoLayoutDirection('HORIZONTAL', sel),
   'aLayoutVertical': (sel) => setAutoLayoutDirection('VERTICAL', sel),
+  'alTopLeft': (sel) => setAutoLayoutAlignment(0, 'Top Left', sel),
+  'alTopCenter': (sel) => setAutoLayoutAlignment(1, 'Top Center', sel),
+  'alTopRight': (sel) => setAutoLayoutAlignment(2, 'Top Right', sel),
+  'alCenterLeft': (sel) => setAutoLayoutAlignment(3, 'Center Left', sel),
+  'alCenterCenter': (sel) => setAutoLayoutAlignment(4, 'Center Center', sel),
+  'alCenterRight': (sel) => setAutoLayoutAlignment(5, 'Center Right', sel),
+  'alBottomLeft': (sel) => setAutoLayoutAlignment(6, 'Bottom Left', sel),
+  'alBottomCenter': (sel) => setAutoLayoutAlignment(7, 'Bottom Center', sel),
+  'alBottomRight': (sel) => setAutoLayoutAlignment(8, 'Bottom Right', sel),
 };
 
 // --- END NEW COMMAND HANDLERS & DISPATCHER ---

@@ -31,6 +31,15 @@
 *   `al.. - Set Auto Layout Alignment` (opens alignment UI)
 *   `al.v - Auto Layout to Vertical`
 *   `al.h - Auto Layout to Horizontal`
+*   `al.tl - Set Auto Layout to Top Left`
+*   `al.tc - Set Auto Layout to Top Center`
+*   `al.tr - Set Auto Layout to Top Right`
+*   `al.cl - Set Auto Layout to Center Left`
+*   `al.cc - Set Auto Layout to Center Center`
+*   `al.cr - Set Auto Layout to Center Right`
+*   `al.bl - Set Auto Layout to Bottom Left`
+*   `al.bc - Set Auto Layout to Bottom Center`
+*   `al.br - Set Auto Layout to Bottom Right`
 *   `g.0 - Gap to 0`
 *   `g.8 - Gap to 8`
 *   `g.16 - Gap to 16`

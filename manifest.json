@@ -72,6 +72,42 @@
       "command": "aLayoutVertical"
     },
     {
+      "name": "al.tl - Set Auto Layout to Top Left",
+      "command": "alTopLeft"
+    },
+    {
+      "name": "al.tc - Set Auto Layout to Top Center",
+      "command": "alTopCenter"
+    },
+    {
+      "name": "al.tr - Set Auto Layout to Top Right",
+      "command": "alTopRight"
+    },
+    {
+      "name": "al.cl - Set Auto Layout to Center Left",
+      "command": "alCenterLeft"
+    },
+    {
+      "name": "al.cc - Set Auto Layout to Center Center",
+      "command": "alCenterCenter"
+    },
+    {
+      "name": "al.cr - Set Auto Layout to Center Right",
+      "command": "alCenterRight"
+    },
+    {
+      "name": "al.bl - Set Auto Layout to Bottom Left",
+      "command": "alBottomLeft"
+    },
+    {
+      "name": "al.bc - Set Auto Layout to Bottom Center",
+      "command": "alBottomCenter"
+    },
+    {
+      "name": "al.br - Set Auto Layout to Bottom Right",
+      "command": "alBottomRight"
+    },
+    {
       "name": "br.8 - Border Radius to 8px",
       "command": "borderRadius8"
     },
