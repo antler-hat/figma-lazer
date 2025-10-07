@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,11 +25,11 @@
             gap: 30px;
             flex-grow: 1;
             overflow-y: auto;
-            outline: none; /* Remove visual focus indicator */
+            outline: none;
         }
 
         .column {
-            flex-grow:1;
+            flex-grow: 1;
         }
 
         .category {
@@ -67,7 +68,8 @@
         }
     </style>
 </head>
-<body> 
+
+<body>
     <div class="content-area" tabindex="0"> <!-- Make content area focusable for keyboard events -->
         <div class="column">
             <div class="category">
@@ -88,24 +90,18 @@
                     <li><code>p.0</code> - Set All Padding to 0</li>
                     <li><code>p.16</code> - Set All Padding to 16</li>
                     <li><code>p..</code> - Set Padding (prompts for custom value)</li>
+                    <li><code>ptop.0</code> - Set Top Padding to 0</li>
+                    <li><code>pbott.0</code> - Set Bottom Padding to 0</li>
+                    <li><code>pleft.0</code> - Set Left Padding to 0</li>
+                    <li><code>pright.0</code> - Set Right Padding to 0</li>
+                    <li><code>phor.0</code> - Set Horizontal Padding to 0</li>
+                    <li><code>pvert.0</code> - Set Vertical Padding to 0</li>
                     <li><code>ptop..</code> - Set Top Padding</li>
                     <li><code>pleft..</code> - Set Left Padding</li>
                     <li><code>pright..</code> - Set Right Padding</li>
                     <li><code>pbott..</code> - Set Bottom Padding</li>
                     <li><code>phor..</code> - Set Horizontal Padding</li>
                     <li><code>pvert..</code> - Set Vertical Padding</li>
-                </ul>
-            </div>
-            <div class="category">
-                <h2>Auto Layout</h2>
-                <ul>
-                    <li><code>al..</code> - Set Auto Layout Alignment (opens alignment UI)</li>
-                    <li><code>al.v</code> - Set Auto Layout to Vertical</li>
-                    <li><code>al.h</code> - Set Auto Layout to Horizontal</li>
-                    <li><code>g.0</code> - Set Gap to 0</li>
-                    <li><code>g.8</code> - Set Gap to 8</li>
-                    <li><code>g.16</code> - Set Gap to 16</li>
-                    <li><code>g..</code> - Set Gap (prompts for custom value)</li>
                 </ul>
             </div>
         </div>
@@ -115,6 +111,7 @@
                 <ul>
                     <li><code>br.0</code> - Set Border Radius to 0px</li>
                     <li><code>br.8</code> - Set Border Radius to 8px</li>
+                    <li><code>br.16</code> - Set Border Radius to 16px</li>
                     <li><code>br..</code> - Set Border Radius (prompts for custom value)</li>
                 </ul>
             </div>
@@ -147,6 +144,29 @@
                 </ul>
             </div>
         </div>
+        <div class="column">
+            <div class="category">
+                <h2>Auto Layout</h2>
+                <ul>
+                    <li><code>al..</code> - Set Auto Layout Alignment (opens alignment UI)</li>
+                    <li><code>al.v</code> - Set Auto Layout to Vertical</li>
+                    <li><code>al.h</code> - Set Auto Layout to Horizontal</li>
+                    <li><code>al.tl</code> - Set Auto Layout to Top Left</li>
+                    <li><code>al.tc</code> - Set Auto Layout to Top Center</li>
+                    <li><code>al.tr</code> - Set Auto Layout to Top Right</li>
+                    <li><code>al.cl</code> - Set Auto Layout to Center Left</li>
+                    <li><code>al.cc</code> - Set Auto Layout to Center Center</li>
+                    <li><code>al.cr</code> - Set Auto Layout to Center Right</li>
+                    <li><code>al.bl</code> - Set Auto Layout to Bottom Left</li>
+                    <li><code>al.bc</code> - Set Auto Layout to Bottom Center</li>
+                    <li><code>al.br</code> - Set Auto Layout to Bottom Right</li>
+                    <li><code>g.0</code> - Set Gap to 0</li>
+                    <li><code>g.8</code> - Set Gap to 8</li>
+                    <li><code>g.16</code> - Set Gap to 16</li>
+                    <li><code>g..</code> - Set Gap (prompts for custom value)</li>
+                </ul>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -155,7 +175,7 @@
         function closeDialog() {
             parent.postMessage({ pluginMessage: { type: 'close-plugin' } }, '*');
         }
-        
+
         // Focus the content area so it can receive keydown events
         contentArea.focus();
 
@@ -166,7 +186,7 @@
                 closeDialog();
             }
         });
-        
+
         // Fallback listener on the window, in case focus is lost from contentArea
         // This will ensure Esc/Enter always closes the dialog.
         window.addEventListener('keydown', (event) => {
@@ -178,4 +198,5 @@
 
     </script>
 </body>
+
 </html>

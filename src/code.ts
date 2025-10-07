@@ -2016,7 +2016,7 @@ figma.on('run', async ({ command, parameters }: RunEvent) => {
       }
     });
   } else if (command === 'help') {
-    figma.showUI(helpDialogHtmlContent, { width: 800, height: 600, themeColors: true, title: "Lazer Commands" });
+    figma.showUI(helpDialogHtmlContent, { width: 900, height: 600, themeColors: true, title: "Lazer Commands" });
   } else if (commandHandlers[command]) {
     commandHandlers[command](selection);
   } else if (command === 'setPadding') {
