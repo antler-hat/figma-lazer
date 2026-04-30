@@ -90,12 +90,12 @@ function parseColor(colorString: string): RGB | null {
 
 // Helper function to check if a node is a valid Auto Layout frame
 function isValidAutoLayoutNode(node: SceneNode): node is AutoLayoutNode {
-  return (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET') && node.layoutMode !== 'NONE';
+  return (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'INSTANCE' || node.type === 'COMPONENT_SET' || (node as any).type === 'SLOT') && (node as any).layoutMode !== 'NONE';
 }
 
 // Helper function to check if a node should use autolayout padding vs manual padding
 function shouldUseAutoLayoutPadding(node: SceneNode): boolean {
-  return (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'COMPONENT_SET' || node.type === 'INSTANCE') && 
+  return (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'COMPONENT_SET' || node.type === 'INSTANCE' || (node as any).type === 'SLOT') && 
          'layoutMode' in node &&
          (node as FrameNode | ComponentNode | ComponentSetNode | InstanceNode).layoutMode !== 'NONE';
 }
