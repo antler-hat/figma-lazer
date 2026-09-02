@@ -7,6 +7,8 @@
 *   `h.h - Height to Hug`
 *   `w.f - Width to Fill`
 *   `h.f - Height to Fill`
+*   `w.100 - Width to 100%`
+*   `h.100 - Height to 100%`
 *   `w.. - Set Width`  (prompts for custom value)
 *   `h.. - Set Height` (prompts for custom value)
 

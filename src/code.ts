@@ -1901,6 +1901,8 @@ const commandHandlers: { [key: string]: (selection: readonly SceneNode[]) => Pro
   'heightHug': handleHeightHug,
   'widthFill': handleWidthFill,
   'heightFill': handleHeightFill,
+  'width100': (sel) => handleSubmitValue({ propertyType: 'setWidth', value: '100%' }, sel),
+  'height100': (sel) => handleSubmitValue({ propertyType: 'setHeight', value: '100%' }, sel),
   'padding0': (sel) => setPaddingForSelection(0, sel),
   'padding16': (sel) => setPaddingForSelection(16, sel),
   'ptop0': (sel) => setSinglePaddingForSelection(0, 'top', sel),

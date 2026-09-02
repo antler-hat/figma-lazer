@@ -28,6 +28,14 @@
       "command": "heightFill"
     },
     {
+      "name": "w.100 - Width to 100%",
+      "command": "width100"
+    },
+    {
+      "name": "h.100 - Height to 100%",
+      "command": "height100"
+    },
+    {
       "name": "p.0 - All Padding to 0",
       "command": "padding0"
     },
